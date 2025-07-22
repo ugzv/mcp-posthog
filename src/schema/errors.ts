@@ -32,7 +32,7 @@ export const ListErrorsSchema = z.object({
 });
 
 export const ErrorDetailsSchema = z.object({
-	issueId: z.string(),
+	issueId: z.string().uuid(),
 	dateFrom: z.string().datetime().optional(),
 	dateTo: z.string().datetime().optional(),
 });
