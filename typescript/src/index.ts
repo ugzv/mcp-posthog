@@ -201,7 +201,7 @@ export default {
 
 		ctx.props = {
 			apiToken: token,
-			userHash: hash(token),
+			userHash: await hash(token),
 		};
 
 		if (url.pathname === "/sse" || url.pathname === "/sse/message") {
