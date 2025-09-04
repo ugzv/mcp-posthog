@@ -90,16 +90,21 @@ POSTHOG_PROJECT_ID=1
 
 ### With Claude Desktop
 
-1. Add to your Claude Desktop configuration (`claude_desktop_config.json`):
+1. Add to your Claude Desktop configuration:
+   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - Linux: `~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
-    "posthog": {
-      "command": "posthog-mcp",
+    "posthog-mcp": {
+      "command": "node",
+      "args": ["C:/path/to/mcp-posthog/dist/index.js"],
       "env": {
         "POSTHOG_HOST": "https://posthog.myteam.network",
-        "POSTHOG_API_KEY": "phx_your_api_key"
+        "POSTHOG_API_KEY": "phx_your_api_key",
+        "POSTHOG_PROJECT_ID": "1"
       }
     }
   }
