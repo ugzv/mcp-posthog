@@ -183,7 +183,8 @@ posthog-mcp
 
 ### Analytics & Insights
 
-- `insights_create` - Create new analytics insights
+- `insights_create` - Create new analytics insights with full query control
+- `insights_create_simple` - Create insights with simplified parameters
 - `insights_retrieve` - Retrieve insights with refresh options
 - `insights_list` - List available insights
 - `insights_update` - Update insight configuration
@@ -237,16 +238,48 @@ posthog-mcp
 
 ### Creating an Insight
 
+#### Simple Insight Creation
+
+```javascript
+{
+  "tool": "insights_create_simple",
+  "arguments": {
+    "name": "Weekly Active Users",
+    "insight_type": "trends",
+    "event": "$pageview",
+    "math": "dau",
+    "date_from": "-7d",
+    "date_to": "0d",
+    "breakdown_by": "$browser"
+  }
+}
+```
+
+#### Advanced Insight Creation
+
 ```javascript
 {
   "tool": "insights_create",
   "arguments": {
-    "name": "Weekly Active Users",
-    "query_type": "trends",
-    "date_range": {
-      "date_from": "-7d",
-      "date_to": "now"
-    }
+    "name": "Custom Funnel Analysis",
+    "description": "Conversion funnel from signup to purchase",
+    "query": {
+      "kind": "FunnelsQuery",
+      "source": {
+        "kind": "FunnelsQuery",
+        "series": [
+          {"kind": "EventsNode", "event": "signup", "name": "User Signup"},
+          {"kind": "EventsNode", "event": "add_to_cart", "name": "Add to Cart"},
+          {"kind": "EventsNode", "event": "purchase", "name": "Purchase"}
+        ],
+        "dateRange": {
+          "date_from": "-30d",
+          "date_to": "0d"
+        }
+      }
+    },
+    "dashboards": [123],
+    "tags": ["conversion", "funnel"]
   }
 }
 ```

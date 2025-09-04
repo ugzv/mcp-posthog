@@ -124,10 +124,31 @@ export enum RefreshMode {
   ForceAsync = 'force_async'
 }
 
+export interface InsightQuery {
+  kind: string;
+  source?: {
+    kind: string;
+    series?: Array<{
+      kind: string;
+      event?: string;
+      name?: string;
+      math?: string;
+    }>;
+    dateRange?: {
+      date_from?: string;
+      date_to?: string;
+    };
+    breakdownFilter?: {
+      breakdown: string;
+      breakdown_type: string;
+    };
+  };
+}
+
 export interface InsightCreateParams {
   name: string;
   description?: string;
-  query?: any;
+  query?: InsightQuery | any;
   filters?: any;
   dashboards?: number[];
   tags?: string[];
