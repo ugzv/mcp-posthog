@@ -1,0 +1,269 @@
+# PostHog API Documentation
+
+Overview
+
+# API overview
+
+Last updated: Aug 22, 2025
+
+|[Edit page](https://github.com/PostHog/posthog.com/tree/master/contents/docs/api/index.mdx)|
+
+Copy page
+
+On this page
+
+* **Private endpoint authentication**
+* **Rate limiting**
+* **Responses**
+* **Status code: 200**
+* **Status code: 400**
+* **Status code: 401**
+* **Status code: 503 (Deprecated)**
+* **Pagination**
+* **Tips**
+    1. **Public POST-only endpoints** such as [`/i/v0/e`](/docs/api/capture) and [`/flags`](/docs/api/flags) are used for capturing events, batching events, updating person or group information, and evaluating feature flags. These don't require authentication, but use [your project API key](https://app.posthog.com/project/settings) to handle the request.
+* Type: PostHog has a powerful API that enables you to capture, evaluate, create, update, and delete nearly all of your information in PostHog. You can use it to [pull information into your app](/tutorials/embedded-analytics), update metadata programmatically, [capture events from any language that can send HTTP requests](/tutorials/api-capture-events), and more.
+
+The API is available for all users and instances. It contains two types of endpoints:
+
+  2. **Private`GET`, `POST`, `PATCH`, `DELETE` endpoints** are used for [querying](/docs/api/queries), creating, updating, or deleting nearly all data in PostHog. They give the same access as if you were logged into your PostHog instance, but require authentication with your personal API key.
+
+> You must make API requests to the correct domain. On US Cloud, these are `https://us.i.posthog.com` for public endpoints and `https://us.posthog.com` for private ones. On EU Cloud, these are `https://eu.i.posthog.com` for public endpoints and `https://eu.posthog.com` for private ones. For self-hosted instances, use your self-hosted domain. Confirm yours by checking your PostHog instance URL.
+
+## Private endpoint authentication
+
+Personal API keys can enable full access to your account, like logging in with your email and password. You can create multiple, give them different scopes, and each can be invalidated individually. This improves the security of your PostHog account. Personal API keys need to be kept private and shouldn't be used in the frontend.
+
+#### How to obtain a personal API key
+
+  1. Go to the [Personal API keys](https://us.posthog.com/settings/user-api-keys) section in your account settings
+
+  2. Click **\+ Create a personal API Key**.
+
+  3. Give your key a label - this is just for you, usually to describe the key's purpose.
+
+  4. Choose the scopes for your key. We recommended selecting only the scopes required for the API endpoints you really need. This is a security best practice. You can always modify the scopes later if you need to.
+
+  5. At the top of the list, you should see your brand new key. **Immediately** copy its value, as you'll **never** see it again after refreshing the page.
+
+You can create as many keys as you like. Personal API keys are deleted when a user is deleted.
+
+#### How to authenticate using the personal API key
+
+There are two options:
+
+  1. Use the `Authorization` header and `Bearer` authentication, like so:
+
+JavaScript
+
+         const headers = {
+
+             Authorization: `Bearer ${POSTHOG_PERSONAL_API_KEY}`
+
+         }
+
+  2. Put the key in request body, like so:
+
+JavaScript
+
+         const body = {
+
+             personal_api_key: POSTHOG_PERSONAL_API_KEY
+
+         }
+
+Any one of these methods works, but only the value encountered first (in the order above) will be used for authentication.
+
+## Rate limiting
+
+Private `GET`, `POST`, `PATCH`, `DELETE` endpoints are rate limited. Public POST-only endpoints are **not** rate limited. A rule of thumb for whether rate limits apply is if the personal API key is used for authentication.
+
+There are separate limits for different kinds of resources.
+
+* **For all analytics endpoints (such as calculating insights, retrieving persons, or retrieving session recordings), the rate limits are `240/minute` and `1200/hour`.**
+
+* **The [`query`](/docs/api/queries) endpoint has a rate limit of `1200/hour`. This counts queries, rather than returned results. For large or regular exports of events, use [batch exports](/docs/cdp/batch-exports).**
+
+* **For [feature flag local evaluation](/docs/feature-flags/local-evaluation) (which is enabled in SDKs when you input a personal API key), the rate limit is `600/minute`.**
+
+* **For the rest of the create, read, update, and delete endpoints, the rate limits are `480/minute` and `4800/hour`.**
+
+* **For public POST-only endpoints like event capture (`/i/v0/e`) and feature flag evaluation (`/flags`), there are no rate limits.**
+
+These limits apply to **the entire team** (i.e. all users within your PostHog organization). For example, if a script requesting feature flag metadata hits the rate limit, and another user, using a different personal API key, makes a single request to the persons API, this gets rate limited as well.
+
+> **Want to use the PostHog API beyond these limits?** Email us at [sales@posthog.com](to:sales@posthog.com).
+
+## Responses
+
+### Status code: 200
+
+**Response:**
+
+JSON
+
+    {
+
+      "status": "Ok"
+
+    }
+
+**Meaning:** A `200: OK` response means we have successfully received the payload, it is in the correct format, and the project API key (`api_key`) is valid. It **does not** imply that events are valid and will be ingested. As mentioned in [invalid events](/docs/api/capture#invalid-events), certain event validation errors may cause an event not to be ingested.
+
+### Status code: 400
+
+**Responses:**
+
+JSON
+
+    {
+
+      "type": "validation_error",
+
+      "code": "invalid_project",
+
+      "detail": "Invalid Project ID.",
+
+      "attr": "project_id"
+
+    }
+
+**Meaning:** We were unable to determine the project to associate the events with.
+
+JSON
+
+    {
+
+      "type": "validation_error",
+
+      "code": "invalid_payload",
+
+      "detail": "Malformed request data",
+
+      "attr": null
+
+    }
+
+**Meaning:** Request payload data formatted incorrectly.
+
+### Status code: 401
+
+**Responses:**
+
+JSON
+
+    {
+
+      "type": "authentication_error",
+
+      "code": "invalid_api_key",
+
+      "detail": "Project API key invalid. You can find your project API key in PostHog project settings."
+
+    }
+
+**Meaning:** The project API key you provided is invalid.
+
+JSON
+
+    {
+
+      "type": "authentication_error",
+
+      "code": "invalid_personal_api_key",
+
+      "detail": "Invalid Personal API key."
+
+    }
+
+**Meaning:** The personal API key you used for authentication is invalid.
+
+### Status code: 503 (Deprecated)
+
+**Response:**
+
+JSON
+
+    {
+
+      "type": "server_error",
+
+      "code": "fetch_team_fail",
+
+      "detail": "Unable to fetch team from database."
+
+    }
+
+**Meaning:** (Deprecated) This error only occurs in self-hosted Postgres instances if the database becomes unavailable. On ClickHouse-backed instances database failures cause events to be added to a dead letter queue, from which they can be recovered.
+
+## Pagination
+
+Requests are paginated if the results are higher than the limit, usually 100 (sometimes 500 or 1000). Pagination happens in the following format:
+
+JSON
+
+    {
+
+      "next": "<ph_app_host>/api/person/?cursor=cD0yMjgxOTA2",
+
+      "previous": null,
+
+      "results": [
+
+        // ...
+
+      ]
+
+    }
+
+You can then just call the `"next"` URL to get the next set of results.
+
+## Tips
+
+* **When logged in, you can view and download the API schema using the following options:**
+
+    * [Download the OpenAPI spec](https://app.posthog.com/api/schema/)
+    * [View the API schema with Swagger UI](https://app.posthog.com/api/schema/swagger-ui/)
+    * [View the API schema with Redoc](https://app.posthog.com/api/schema/redoc/)
+* **The [`/users/@me/` endpoint](/docs/api/user) gives you useful information about the current user.**
+
+* **The `/api/event_definition/` and `/api/property_definition` endpoints provide the possible event names and properties you can use throughout the rest of the API.**
+
+* **The maximum size of a POST request body is governed by `settings.DATA_UPLOAD_MAX_MEMORY_SIZE`, and is 20MB by default.**
+
+* **By default, the PostHog API returns results from the last project you visited in the UI. To override this behavior, you can pass in your project API key as a query parameter in the request like `api/event/?token=my_project_api_key`.**
+  It's easier than reading through **800 pages of documentation**
+* Type: ### Questions? Ask Max AI.
+
+Chat with Max
+
+### Community questions
+
+Ask a questionLogin
+
+### Was this page useful?
+
+Next article
+
+### Capture and batch API endpoints
+
+The /i/v0/e and /batch endpoints are the main way to send events to PostHog. Beyond user behavior, they are also used to identify users, update person or group properties, migrate from other platforms, and more. Our SDKs handle the different event types for you, but with the API, you need to send the right type of event (listed below) to trigger the functionality you want. Both are POST-only public endpoints that use your project API key and do not return any sensitive data from your…
+
+[Read next article](/docs/api/capture)
+
+### Contributors
+
+### [Ian VanagasTechnical Content Marketer](/community/profiles/29296)### [Joshua SnyderProduct Engineer](/community/profiles/32497)### [Edwin LimTechnical Content Marketer](/community/profiles/33938)+16 more
+
+#### Jump to:
+
+* **Private endpoint authentication**
+* **Rate limiting**
+* **Responses**
+* **Status code: 200**
+* **Status code: 400**
+* **Status code: 401**
+* **Status code: 503 (Deprecated)**
+* **Pagination**
+* **Tips**
+* **Questions?**
