@@ -4,6 +4,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema 
 } from '@modelcontextprotocol/sdk/types.js';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { PostHogClient, PostHogAPIError } from './client/posthog-client';
 import { registerInsightsTools } from './tools/insights';
 import { registerPersonsTools } from './tools/persons';
@@ -75,7 +76,7 @@ export class PostHogMCPServer {
       tools: Object.entries(this.allTools).map(([name, tool]) => ({
         name,
         description: tool.description,
-        inputSchema: tool.inputSchema._def,
+        inputSchema: zodToJsonSchema(tool.inputSchema),
       })),
     }));
 
