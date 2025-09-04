@@ -27,10 +27,8 @@ async function build() {
       'dotenv'
     ],
     sourcemap: true,
-    minify: false, // Keep readable for debugging
-    banner: {
-      js: '#!/usr/bin/env node'
-    }
+    minify: false // Keep readable for debugging
+    // Remove banner for Windows compatibility
   });
 
   // Make the output file executable
