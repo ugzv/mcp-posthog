@@ -190,3 +190,66 @@ export interface CohortCreateParams {
   filters?: any;
   is_static?: boolean;
 }
+
+export interface Annotation {
+  id: number;
+  content: string;
+  date_marker: string;
+  creation_type?: string;
+  dashboard_item?: number;
+  dashboard_id?: number;
+  dashboard_name?: string;
+  insight_short_id?: string;
+  insight_name?: string;
+  created_by?: any;
+  created_at: string;
+  updated_at: string;
+  deleted?: boolean;
+  scope?: string;
+}
+
+export interface AnnotationCreateParams {
+  content: string;
+  date_marker: string;
+  scope?: 'organization' | 'project' | 'dashboard_item';
+  dashboard_item?: number;
+  tags?: string[];
+}
+
+export interface Action {
+  id: number;
+  name: string;
+  description?: string;
+  tags?: string[];
+  post_to_slack?: boolean;
+  slack_message_format?: string;
+  steps?: ActionStep[];
+  created_at: string;
+  created_by?: any;
+  deleted?: boolean;
+  is_calculating?: boolean;
+  last_calculated_at?: string;
+  team_id?: number;
+}
+
+export interface ActionStep {
+  event?: string;
+  properties?: Record<string, any>[];
+  selector?: string;
+  tag_name?: string;
+  text?: string;
+  text_matching?: 'exact' | 'contains' | 'regex';
+  href?: string;
+  href_matching?: 'exact' | 'contains' | 'regex';
+  url?: string;
+  url_matching?: 'exact' | 'contains' | 'regex';
+}
+
+export interface ActionCreateParams {
+  name: string;
+  description?: string;
+  steps: ActionStep[];
+  tags?: string[];
+  post_to_slack?: boolean;
+  slack_message_format?: string;
+}

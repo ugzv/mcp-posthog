@@ -16,7 +16,11 @@ import {
   FeatureFlagCreateParams,
   DashboardCreateParams,
   EventCaptureParams,
-  CohortCreateParams
+  CohortCreateParams,
+  Annotation,
+  AnnotationCreateParams,
+  Action,
+  ActionCreateParams
 } from '../types/posthog';
 
 export class PostHogAPIError extends Error {
@@ -497,6 +501,106 @@ export class PostHogClient {
     const { data } = await this.client.post<QueryResponse>(
       this.getProjectUrl('query/', projectId),
       requestBody
+    );
+    return data;
+  }
+
+  // Annotations
+  async listAnnotations(
+    limit = 100,
+    offset = 0,
+    search?: string,
+    projectId?: string
+  ): Promise<PaginatedResponse<Annotation>> {
+    const params: any = { limit, offset };
+    if (search) params.search = search;
+    
+    const { data } = await this.client.get<PaginatedResponse<Annotation>>(
+      this.getProjectUrl('annotations/', projectId),
+      { params }
+    );
+    return data;
+  }
+
+  async createAnnotation(
+    params: AnnotationCreateParams,
+    projectId?: string
+  ): Promise<Annotation> {
+    const { data } = await this.client.post<Annotation>(
+      this.getProjectUrl('annotations/', projectId),
+      params
+    );
+    return data;
+  }
+
+  async getAnnotation(annotationId: number, projectId?: string): Promise<Annotation> {
+    const { data } = await this.client.get<Annotation>(
+      this.getProjectUrl(`annotations/${annotationId}/`, projectId)
+    );
+    return data;
+  }
+
+  async updateAnnotation(
+    annotationId: number,
+    updates: Partial<AnnotationCreateParams & { deleted?: boolean }>,
+    projectId?: string
+  ): Promise<Annotation> {
+    const { data } = await this.client.patch<Annotation>(
+      this.getProjectUrl(`annotations/${annotationId}/`, projectId),
+      updates
+    );
+    return data;
+  }
+
+  // Actions
+  async listActions(
+    limit = 100,
+    offset = 0,
+    format?: 'json' | 'csv',
+    projectId?: string
+  ): Promise<PaginatedResponse<Action>> {
+    const params: any = { limit, offset };
+    if (format) params.format = format;
+    
+    const { data } = await this.client.get<PaginatedResponse<Action>>(
+      this.getProjectUrl('actions/', projectId),
+      { params }
+    );
+    return data;
+  }
+
+  async createAction(
+    params: ActionCreateParams,
+    projectId?: string
+  ): Promise<Action> {
+    const { data } = await this.client.post<Action>(
+      this.getProjectUrl('actions/', projectId),
+      params
+    );
+    return data;
+  }
+
+  async getAction(
+    actionId: number,
+    format?: 'json' | 'csv',
+    projectId?: string
+  ): Promise<Action> {
+    const params = format ? { format } : {};
+    const { data } = await this.client.get<Action>(
+      this.getProjectUrl(`actions/${actionId}/`, projectId),
+      { params }
+    );
+    return data;
+  }
+
+  async updateAction(
+    actionId: number,
+    updates: Partial<ActionCreateParams & { deleted?: boolean }>,
+    projectId?: string
+  ): Promise<Action> {
+    const { data } = await this.client.patch<Action>(
+      this.getProjectUrl(`actions/${actionId}/`, projectId),
+      updates
     );
     return data;
   }

@@ -234,6 +234,23 @@ posthog-mcp
 - `query_hogql` - Execute HogQL queries
 - `query_export` - Export query results (CSV/JSON)
 
+### Annotations
+
+- `annotations_list` - List all annotations
+- `annotations_create` - Create annotations for important events
+- `annotations_retrieve` - Get annotation details
+- `annotations_update` - Update existing annotations
+- `annotations_delete` - Delete annotations (soft delete)
+
+### Actions
+
+- `actions_list` - List all defined actions
+- `actions_create` - Create custom actions with steps
+- `actions_create_simple` - Create simple actions from common patterns
+- `actions_retrieve` - Get action details
+- `actions_update` - Update action configuration
+- `actions_delete` - Delete actions (soft delete)
+
 ## Examples
 
 ### Creating an Insight
@@ -320,6 +337,55 @@ posthog-mcp
   "tool": "query_hogql",
   "arguments": {
     "query": "SELECT event, count() FROM events WHERE timestamp > now() - interval 7 day GROUP BY event ORDER BY count() DESC LIMIT 10"
+  }
+}
+```
+
+### Creating an Annotation
+
+```javascript
+{
+  "tool": "annotations_create",
+  "arguments": {
+    "content": "Deployed v2.5.0 - New checkout flow",
+    "date_marker": "2024-01-15T14:30:00Z",
+    "scope": "project"
+  }
+}
+```
+
+### Creating a Simple Action
+
+```javascript
+{
+  "tool": "actions_create_simple",
+  "arguments": {
+    "name": "Signup Button Click",
+    "event_name": "$autocapture",
+    "selector": "button#signup-btn",
+    "text": "Sign Up Now",
+    "tags": ["conversion", "funnel"]
+  }
+}
+```
+
+### Creating a Complex Action
+
+```javascript
+{
+  "tool": "actions_create",
+  "arguments": {
+    "name": "Premium Feature Usage",
+    "description": "Track when premium features are used",
+    "steps": [{
+      "event": "feature_used",
+      "properties": [{
+        "feature_tier": "premium",
+        "user_plan": "pro"
+      }]
+    }],
+    "post_to_slack": true,
+    "slack_message_format": "Premium feature used: ${properties.feature_name}"
   }
 }
 ```

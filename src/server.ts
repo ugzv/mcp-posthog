@@ -14,6 +14,8 @@ import { registerEventsTools } from './tools/events';
 import { registerCohortsTools } from './tools/cohorts';
 import { registerProjectsTools } from './tools/projects';
 import { registerQueryTools } from './tools/query';
+import { registerAnnotationsTools } from './tools/annotations';
+import { registerActionsTools } from './tools/actions';
 
 export interface ServerConfig {
   host: string;
@@ -63,7 +65,9 @@ export class PostHogMCPServer {
       registerEventsTools(this.client),
       registerCohortsTools(this.client),
       registerProjectsTools(this.client),
-      registerQueryTools(this.client)
+      registerQueryTools(this.client),
+      registerAnnotationsTools(this.client),
+      registerActionsTools(this.client)
     ];
 
     // Merge all tools into a single object
