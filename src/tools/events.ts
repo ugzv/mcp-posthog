@@ -31,7 +31,7 @@ export function registerEventsTools(client: PostHogClient) {
           distinct_id: input.distinct_id,
           properties: input.properties,
           timestamp: input.timestamp
-        }, input.project_id);
+        });
         
         return {
           content: [{

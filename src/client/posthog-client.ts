@@ -5,7 +5,6 @@ import {
   Insight,
   FeatureFlag,
   Dashboard,
-  Event,
   Cohort,
   Project,
   PaginatedResponse,
@@ -51,10 +50,11 @@ export class PostHogClient {
       (response) => response,
       (error: AxiosError) => {
         if (error.response) {
+          const data = error.response.data as any;
           throw new PostHogAPIError(
-            error.response.data?.detail || error.message,
+            data?.detail || error.message,
             error.response.status,
-            error.response.data
+            data
           );
         } else if (error.request) {
           throw new PostHogAPIError('No response from PostHog API', 0);
@@ -307,7 +307,7 @@ export class PostHogClient {
   }
 
   // Events
-  async captureEvent(params: EventCaptureParams, projectId?: string): Promise<void> {
+  async captureEvent(params: EventCaptureParams): Promise<void> {
     await this.client.post('/capture/', {
       ...params,
       api_key: this.projectId, // Use project API key for capture endpoint

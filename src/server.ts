@@ -1,5 +1,9 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { 
+  CallToolRequestSchema,
+  ListToolsRequestSchema 
+} from '@modelcontextprotocol/sdk/types.js';
 import { PostHogClient, PostHogAPIError } from './client/posthog-client';
 import { registerInsightsTools } from './tools/insights';
 import { registerPersonsTools } from './tools/persons';
@@ -21,6 +25,7 @@ export interface ServerConfig {
 export class PostHogMCPServer {
   private server: Server;
   private client: PostHogClient;
+  private allTools: Record<string, any> = {};
 
   constructor(config: ServerConfig) {
     // Initialize PostHog client
@@ -48,7 +53,7 @@ export class PostHogMCPServer {
   }
 
   private registerTools() {
-    // Register all tool categories
+    // Collect all tools from categories
     const toolCategories = [
       registerInsightsTools(this.client),
       registerPersonsTools(this.client),
@@ -60,55 +65,62 @@ export class PostHogMCPServer {
       registerQueryTools(this.client)
     ];
 
-    // Register each tool with the server
+    // Merge all tools into a single object
     for (const tools of toolCategories) {
-      for (const [name, tool] of Object.entries(tools)) {
-        this.server.setRequestHandler(`tools/list`, async () => ({
-          tools: Object.entries(tools).map(([toolName, toolDef]) => ({
-            name: toolName,
-            description: toolDef.description,
-            inputSchema: toolDef.inputSchema._def,
-          })),
-        }));
-
-        this.server.setRequestHandler(`tools/call`, async (request: any) => {
-          if (request.params.name === name) {
-            try {
-              const validated = tool.inputSchema.parse(request.params.arguments);
-              return await tool.handler(validated);
-            } catch (error) {
-              if (error instanceof PostHogAPIError) {
-                return {
-                  content: [{
-                    type: 'text' as const,
-                    text: `PostHog API Error: ${error.message}${error.details ? `\nDetails: ${JSON.stringify(error.details)}` : ''}`
-                  }],
-                  isError: true
-                };
-              }
-              
-              if (error instanceof Error) {
-                return {
-                  content: [{
-                    type: 'text' as const,
-                    text: `Error: ${error.message}`
-                  }],
-                  isError: true
-                };
-              }
-              
-              return {
-                content: [{
-                  type: 'text' as const,
-                  text: `Unknown error occurred: ${error}`
-                }],
-                isError: true
-              };
-            }
-          }
-        });
-      }
+      Object.assign(this.allTools, tools);
     }
+
+    // Register the list tools handler
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: Object.entries(this.allTools).map(([name, tool]) => ({
+        name,
+        description: tool.description,
+        inputSchema: tool.inputSchema._def,
+      })),
+    }));
+
+    // Register the call tool handler
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const toolName = request.params.name;
+      const tool = this.allTools[toolName];
+
+      if (!tool) {
+        throw new Error(`Tool not found: ${toolName}`);
+      }
+
+      try {
+        const validated = tool.inputSchema.parse(request.params.arguments);
+        return await tool.handler(validated);
+      } catch (error) {
+        if (error instanceof PostHogAPIError) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: `PostHog API Error: ${error.message}${error.details ? `\nDetails: ${JSON.stringify(error.details)}` : ''}`
+            }],
+            isError: true
+          };
+        }
+        
+        if (error instanceof Error) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: `Error: ${error.message}`
+            }],
+            isError: true
+          };
+        }
+        
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Unknown error occurred: ${error}`
+          }],
+          isError: true
+        };
+      }
+    });
   }
 
   private setupErrorHandling() {
