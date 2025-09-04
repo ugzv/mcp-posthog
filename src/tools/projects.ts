@@ -10,17 +10,27 @@ export const projectsGetSettingsSchema = z.object({
 export function registerProjectsTools(client: PostHogClient) {
   return {
     projects_list: {
-      description: 'List all projects',
+      description: 'List accessible projects (returns configured project if using scoped API key)',
       inputSchema: projectsListSchema,
       handler: async () => {
-        const projects = await client.listProjects();
-        
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify(projects, null, 2)
-          }]
-        };
+        try {
+          const projects = await client.listProjects();
+          
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify(projects, null, 2)
+            }]
+          };
+        } catch (error: any) {
+          // Provide helpful context about the error
+          return {
+            content: [{
+              type: 'text' as const,
+              text: `Error: ${error.message}\n\nNote: If you're using a project-scoped API key, you can only access the configured project. Use projects_get_settings with your project ID instead.`
+            }]
+          };
+        }
       }
     },
 

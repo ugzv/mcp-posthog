@@ -19,7 +19,8 @@ A Model Context Protocol (MCP) server that enables AI assistants like Claude to 
 
 - Node.js 18.0.0 or higher
 - PostHog instance (cloud or self-hosted)
-- PostHog Personal API Key
+- PostHog Personal API Key (required for management operations)
+- PostHog Project API Key (optional for event capture)
 
 ### From Source
 
@@ -61,6 +62,7 @@ posthog-mcp --init
 {
   "host": "https://posthog.myteam.network",
   "apiKey": "phx_your_personal_api_key",
+  "projectApiKey": "phc_your_project_api_key",
   "projectId": "1"
 }
 ```
@@ -76,15 +78,30 @@ cp .env.example .env
 # Edit .env with your credentials
 POSTHOG_HOST=https://posthog.myteam.network
 POSTHOG_API_KEY=phx_your_personal_api_key
+POSTHOG_PROJECT_API_KEY=phc_your_project_api_key
 POSTHOG_PROJECT_ID=1
 ```
 
-### Getting Your API Key
+### API Keys Configuration
 
-1. Log into your PostHog instance
-2. Navigate to Project Settings → Personal API Keys
-3. Create a new Personal API Key with appropriate scopes
-4. Copy the key (it starts with `phx_`)
+PostHog MCP supports **dual-key authentication** for maximum flexibility:
+
+#### 1. Personal API Key (Required)
+- **Purpose**: Management operations (queries, dashboards, insights, feature flags)
+- **Format**: Starts with `phx_`
+- **Location**: Account Settings → Personal API Keys
+- **Scopes**: Project-scoped keys work perfectly (no need for organization-level access)
+
+#### 2. Project API Key (Optional)
+- **Purpose**: Event capture/ingestion only
+- **Format**: Starts with `phc_`
+- **Location**: Project Settings → API Keys
+- **When needed**: Only if you want to capture/send events to PostHog
+
+**Important Notes**:
+- Personal API keys that are project-scoped (most common) work seamlessly
+- The MCP automatically handles project-scoped limitations
+- Event capture is disabled if no project API key is provided (with helpful error messages)
 
 ## Usage
 
@@ -103,7 +120,8 @@ POSTHOG_PROJECT_ID=1
       "args": ["C:/path/to/mcp-posthog/dist/index.js"],
       "env": {
         "POSTHOG_HOST": "https://posthog.myteam.network",
-        "POSTHOG_API_KEY": "phx_your_api_key",
+        "POSTHOG_API_KEY": "phx_your_personal_api_key",
+        "POSTHOG_PROJECT_API_KEY": "phc_your_project_api_key",
         "POSTHOG_PROJECT_ID": "1"
       }
     }
@@ -138,6 +156,27 @@ posthog-mcp
 
 # Or with config file
 posthog-mcp
+```
+
+## Configuration Examples
+
+### Full Configuration (All Features)
+```json
+{
+  "host": "https://posthog.myteam.network",
+  "apiKey": "phx_abc123...",          // Personal API key
+  "projectApiKey": "phc_xyz789...",    // Project API key
+  "projectId": "1"
+}
+```
+
+### Query-Only Configuration (No Event Capture)
+```json
+{
+  "host": "https://posthog.myteam.network",
+  "apiKey": "phx_abc123...",          // Personal API key only
+  "projectId": "1"
+}
 ```
 
 ## Available Tools
@@ -316,17 +355,22 @@ The server respects PostHog's API rate limits:
 
 ## Troubleshooting
 
-### Connection Issues
+### Common Issues
 
+#### "API keys with scoped projects" Error
+- **Cause**: Your personal API key is project-scoped (this is normal)
+- **Solution**: Already handled! The MCP automatically uses project-specific endpoints
+- **Note**: You can only access your configured project, not all organization projects
+
+#### Connection Issues
 1. Verify your PostHog instance URL is correct
-2. Check API key validity and permissions
+2. Check API key validity (personal key starts with `phx_`)
 3. Ensure network connectivity to PostHog
 
-### Authentication Errors
-
-1. Regenerate your Personal API Key
-2. Check key has required scopes
-3. Verify project ID is correct
+#### Event Capture Not Working
+1. Ensure you have configured a Project API Key (`phc_`)
+2. Project API keys are separate from Personal API keys
+3. Check Project Settings → API Keys in PostHog
 
 ### Rate Limiting
 

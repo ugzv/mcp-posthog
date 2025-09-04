@@ -33,9 +33,11 @@ export class PostHogAPIError extends Error {
 export class PostHogClient {
   private client: AxiosInstance;
   private projectId?: string;
+  private projectApiKey?: string;
 
   constructor(config: PostHogConfig) {
     this.projectId = config.projectId;
+    this.projectApiKey = config.projectApiKey;
     
     this.client = axios.create({
       baseURL: config.host.replace(/\/$/, ''),
@@ -308,9 +310,29 @@ export class PostHogClient {
 
   // Events
   async captureEvent(params: EventCaptureParams): Promise<void> {
-    await this.client.post('/capture/', {
+    // The capture endpoint requires a project API key, not a personal API key
+    // Use the configured project API key if available
+    const apiKey = this.projectApiKey;
+    
+    if (!apiKey) {
+      throw new PostHogAPIError(
+        'Event capture requires a project API key. Personal API keys cannot capture events. ' +
+        'Please configure a project API key (projectApiKey) in your configuration.'
+      );
+    }
+    
+    // Create a separate client for the capture endpoint with the project API key
+    const captureClient = axios.create({
+      baseURL: this.client.defaults.baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 30000,
+    });
+    
+    await captureClient.post('/capture/', {
       ...params,
-      api_key: this.projectId, // Use project API key for capture endpoint
+      api_key: apiKey,
     });
   }
 
@@ -318,9 +340,31 @@ export class PostHogClient {
     query: QueryRequest,
     projectId?: string
   ): Promise<QueryResponse> {
+    // Check if the query already has a LIMIT clause
+    const hasLimit = /\bLIMIT\s+\d+/i.test(query.query);
+    
+    // If no LIMIT in query and limit is specified, add it to the SQL
+    let finalQuery = query.query;
+    if (!hasLimit && query.limit) {
+      finalQuery = `${query.query.trim()} LIMIT ${query.limit}`;
+    }
+    
+    // Build the request body
+    const requestBody: any = {
+      query: {
+        kind: 'HogQLQuery',
+        query: finalQuery
+      }
+    };
+    
+    // Add variables at root level if provided
+    if (query.variables && Object.keys(query.variables).length > 0) {
+      requestBody.variables = query.variables;
+    }
+    
     const { data } = await this.client.post<QueryResponse>(
       this.getProjectUrl('query/', projectId),
-      query
+      requestBody
     );
     return data;
   }
@@ -376,11 +420,47 @@ export class PostHogClient {
 
   // Projects
   async listProjects(): Promise<Project[]> {
-    const { data } = await this.client.get<{ results: Project[] }>('/api/projects/');
-    return data.results;
+    // Note: /api/projects/ endpoint doesn't work with project-scoped personal API keys
+    // If we have a configured project ID, return just that project
+    if (this.projectId) {
+      try {
+        const project = await this.getProject(this.projectId);
+        return [project];
+      } catch (error: any) {
+        // If the error is about scoped projects, provide a helpful message
+        if (error.message?.includes('scoped projects')) {
+          throw new PostHogAPIError(
+            'Cannot list all projects with a project-scoped API key. ' +
+            'Your API key is limited to project ' + this.projectId + '. ' +
+            'To list all projects, use an organization-level API key.',
+            error.statusCode,
+            error.details
+          );
+        }
+        throw error;
+      }
+    }
+    
+    // Try the standard projects endpoint for non-scoped keys
+    try {
+      const { data } = await this.client.get<{ results: Project[] }>('/api/projects/');
+      return data.results;
+    } catch (error: any) {
+      // If this fails with scoped project error, provide helpful message
+      if (error.message?.includes('scoped projects')) {
+        throw new PostHogAPIError(
+          'Cannot list projects with a project-scoped API key. ' +
+          'Configure a project ID in your settings to work with a specific project.',
+          error.statusCode,
+          error.details
+        );
+      }
+      throw error;
+    }
   }
 
   async getProject(projectId: string): Promise<Project> {
+    // Use the project-specific endpoint which works with scoped keys
     const { data } = await this.client.get<Project>(`/api/projects/${projectId}/`);
     return data;
   }
@@ -392,13 +472,31 @@ export class PostHogClient {
     limit = 100,
     projectId?: string
   ): Promise<QueryResponse> {
+    // Check if the query already has a LIMIT clause
+    const hasLimit = /\bLIMIT\s+\d+/i.test(query);
+    
+    // If no LIMIT in query and limit is specified, add it to the SQL
+    let finalQuery = query;
+    if (!hasLimit && limit) {
+      finalQuery = `${query.trim()} LIMIT ${limit}`;
+    }
+    
+    // HogQLQuery doesn't accept a separate limit parameter
+    const requestBody: any = {
+      query: {
+        kind: 'HogQLQuery',
+        query: finalQuery
+      }
+    };
+    
+    // Add variables at root level if provided
+    if (variables && Object.keys(variables).length > 0) {
+      requestBody.variables = variables;
+    }
+    
     const { data } = await this.client.post<QueryResponse>(
       this.getProjectUrl('query/', projectId),
-      {
-        query: { kind: 'HogQLQuery', query },
-        variables,
-        limit
-      }
+      requestBody
     );
     return data;
   }

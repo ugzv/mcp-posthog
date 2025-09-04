@@ -1,6 +1,7 @@
 export interface PostHogConfig {
   host: string;
-  apiKey: string;
+  apiKey: string;  // Personal API key for management operations
+  projectApiKey?: string;  // Project API key for event capture
   projectId?: string;
 }
 

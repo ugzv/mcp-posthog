@@ -4,7 +4,8 @@ import { config as dotenv } from 'dotenv';
 
 export interface Config {
   host: string;
-  apiKey: string;
+  apiKey: string;  // Personal API key for management operations
+  projectApiKey?: string;  // Project API key for event capture
   projectId?: string;
   serverName?: string;
   serverVersion?: string;
@@ -38,6 +39,7 @@ export function loadConfig(): Config {
   const config: Config = {
     host: process.env.POSTHOG_HOST || fileConfig.host || '',
     apiKey: process.env.POSTHOG_API_KEY || fileConfig.apiKey || '',
+    projectApiKey: process.env.POSTHOG_PROJECT_API_KEY || fileConfig.projectApiKey,
     projectId: process.env.POSTHOG_PROJECT_ID || fileConfig.projectId,
     serverName: process.env.MCP_SERVER_NAME || fileConfig.serverName || 'posthog-mcp',
     serverVersion: process.env.MCP_SERVER_VERSION || fileConfig.serverVersion || '1.0.0',
@@ -70,8 +72,18 @@ export function loadConfig(): Config {
 
 export function validateApiKey(apiKey: string): boolean {
   // Personal API keys typically start with 'phx_' or similar patterns
-  // Project API keys are typically shorter
+  // Project API keys typically start with 'phc_'
   return apiKey.length > 0;
+}
+
+export function isPersonalApiKey(apiKey: string): boolean {
+  // Personal API keys usually start with 'phx_' or have a specific pattern
+  return apiKey.startsWith('phx_') || apiKey.length > 40;
+}
+
+export function isProjectApiKey(apiKey: string): boolean {
+  // Project API keys usually start with 'phc_'
+  return apiKey.startsWith('phc_');
 }
 
 export function createConfigFile(outputPath?: string): void {
@@ -80,6 +92,7 @@ export function createConfigFile(outputPath?: string): void {
   const sampleConfig = {
     host: "https://posthog.myteam.network",
     apiKey: "<your_personal_api_key>",
+    projectApiKey: "<your_project_api_key>",
     projectId: "<optional_default_project_id>",
     serverName: "posthog-mcp",
     serverVersion: "1.0.0",

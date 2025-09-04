@@ -5,8 +5,7 @@ export const eventsCaptureSchema = z.object({
   event_name: z.string().describe('Name of the event'),
   distinct_id: z.string().describe('User distinct ID'),
   properties: z.record(z.any()).optional().describe('Event properties'),
-  timestamp: z.string().optional().describe('Event timestamp (ISO 8601 format)'),
-  project_id: z.string().optional().describe('Project ID (uses default if not provided)')
+  timestamp: z.string().optional().describe('Event timestamp (ISO 8601 format)')
 });
 
 export const eventsQuerySchema = z.object({
@@ -26,19 +25,28 @@ export function registerEventsTools(client: PostHogClient) {
       description: 'Send custom events to PostHog',
       inputSchema: eventsCaptureSchema,
       handler: async (input: z.infer<typeof eventsCaptureSchema>) => {
-        await client.captureEvent({
-          event: input.event_name,
-          distinct_id: input.distinct_id,
-          properties: input.properties,
-          timestamp: input.timestamp
-        });
-        
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `Event "${input.event_name}" captured successfully for user ${input.distinct_id}`
-          }]
-        };
+        try {
+          await client.captureEvent({
+            event: input.event_name,
+            distinct_id: input.distinct_id,
+            properties: input.properties,
+            timestamp: input.timestamp
+          });
+          
+          return {
+            content: [{
+              type: 'text' as const,
+              text: `Event "${input.event_name}" captured successfully for user ${input.distinct_id}`
+            }]
+          };
+        } catch (error: any) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: `Failed to capture event: ${error.message}\n\nNote: Event capture requires a project API key to be configured.`
+            }]
+          };
+        }
       }
     },
 
