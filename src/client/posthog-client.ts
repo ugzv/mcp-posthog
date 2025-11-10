@@ -334,7 +334,7 @@ export class PostHogClient {
       timeout: 30000,
     });
     
-    await captureClient.post('/capture/', {
+    await captureClient.post('/i/v0/e', {
       ...params,
       api_key: apiKey,
     });
