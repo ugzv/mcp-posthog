@@ -95,14 +95,8 @@ export function createConfigFile(outputPath?: string): void {
     projectApiKey: "<your_project_api_key>",
     projectId: "<optional_default_project_id>",
     serverName: "posthog-mcp",
-    serverVersion: "1.0.0",
-    rateLimit: {
-      maxRequestsPerMinute: 200
-    },
-    cache: {
-      enabled: true,
-      ttl: 300
-    }
+    serverVersion: "1.0.0"
+    // Note: rateLimit and cache options are not yet implemented
   };
 
   fs.writeFileSync(configPath, JSON.stringify(sampleConfig, null, 2));

@@ -55,17 +55,20 @@ export function registerEventsTools(client: PostHogClient) {
       inputSchema: eventsQuerySchema,
       handler: async (input: z.infer<typeof eventsQuerySchema>) => {
         let query = input.query;
-        
-        // Add date range to query if provided
+        const variables = { ...(input.variables || {}) };
+
+        // Add date range to query if provided using parameterized variables
         if (input.date_range) {
           const conditions = [];
           if (input.date_range.date_from) {
-            conditions.push(`timestamp >= '${input.date_range.date_from}'`);
+            conditions.push('timestamp >= {date_from:DateTime}');
+            variables.date_from = input.date_range.date_from;
           }
           if (input.date_range.date_to) {
-            conditions.push(`timestamp <= '${input.date_range.date_to}'`);
+            conditions.push('timestamp <= {date_to:DateTime}');
+            variables.date_to = input.date_range.date_to;
           }
-          
+
           if (conditions.length > 0) {
             // If the query already has a WHERE clause, add to it
             if (query.toLowerCase().includes('where')) {
@@ -86,10 +89,10 @@ export function registerEventsTools(client: PostHogClient) {
 
         const result = await client.queryEvents({
           query,
-          variables: input.variables,
+          variables,
           limit: input.limit
         }, input.project_id);
-        
+
         return {
           content: [{
             type: 'text' as const,

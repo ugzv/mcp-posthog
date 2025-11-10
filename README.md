@@ -136,15 +136,25 @@ PostHog MCP supports **dual-key authentication** for maximum flexibility:
    - "Create a feature flag for the new dashboard"
    - "List all active users with premium subscription"
 
-### With Claude Code
+### With Claude Code CLI
 
-1. Start the MCP server:
+Add the MCP server using the `claude mcp add` command:
 
 ```bash
-posthog-mcp
+claude mcp add --transport stdio posthog \
+  --env POSTHOG_HOST=https://posthog.myteam.network \
+  --env POSTHOG_API_KEY=phx_your_personal_api_key \
+  --env POSTHOG_PROJECT_ID=1 \
+  -- node /absolute/path/to/mcp-posthog/dist/index.js
 ```
 
-2. Claude Code will automatically detect and connect to the server
+Verify the connection:
+
+```bash
+claude mcp list
+```
+
+For detailed setup instructions including scope configuration, troubleshooting, and best practices, see **[CLAUDE_CODE_SETUP.md](./CLAUDE_CODE_SETUP.md)**
 
 ### Standalone Mode
 
@@ -188,6 +198,7 @@ posthog-mcp
 - `insights_retrieve` - Retrieve insights with refresh options
 - `insights_list` - List available insights
 - `insights_update` - Update insight configuration
+- `insights_delete` - Delete an insight
 
 ### Person Management
 

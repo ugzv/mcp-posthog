@@ -20,6 +20,7 @@ import { registerActionsTools } from './tools/actions';
 export interface ServerConfig {
   host: string;
   apiKey: string;
+  projectApiKey?: string;
   projectId?: string;
   serverName?: string;
   serverVersion?: string;
@@ -35,6 +36,7 @@ export class PostHogMCPServer {
     this.client = new PostHogClient({
       host: config.host,
       apiKey: config.apiKey,
+      projectApiKey: config.projectApiKey,
       projectId: config.projectId
     });
 

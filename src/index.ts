@@ -23,11 +23,12 @@ Usage:
   posthog-mcp --help       Show this help message
 
 Environment Variables:
-  POSTHOG_HOST            PostHog instance URL (required)
-  POSTHOG_API_KEY         Personal API key for authentication (required)
-  POSTHOG_PROJECT_ID      Default project ID (optional)
-  MCP_SERVER_NAME         Server name (default: posthog-mcp)
-  MCP_SERVER_VERSION      Server version (default: 1.0.0)
+  POSTHOG_HOST              PostHog instance URL (required)
+  POSTHOG_API_KEY           Personal API key for authentication (required)
+  POSTHOG_PROJECT_API_KEY   Project API key for event capture (optional)
+  POSTHOG_PROJECT_ID        Default project ID (optional)
+  MCP_SERVER_NAME           Server name (default: posthog-mcp)
+  MCP_SERVER_VERSION        Server version (default: 1.0.0)
 
 Configuration File:
   The server looks for posthog-mcp.config.json in the current directory.
@@ -46,6 +47,7 @@ For more information, see: https://github.com/yourusername/mcp-posthog
     const server = new PostHogMCPServer({
       host: config.host,
       apiKey: config.apiKey,
+      projectApiKey: config.projectApiKey,
       projectId: config.projectId,
       serverName: config.serverName,
       serverVersion: config.serverVersion
