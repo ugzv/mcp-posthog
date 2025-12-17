@@ -244,21 +244,6 @@ export class PostHogClient {
     await this.client.delete(this.getProjectUrl(`feature_flags/${flagId}/`, projectId));
   }
 
-  async evaluateFeatureFlags(
-    distinctId: string,
-    flagKeys?: string[],
-    projectId?: string
-  ): Promise<Record<string, boolean | string>> {
-    const params: any = { distinct_id: distinctId };
-    if (flagKeys) params.feature_flags = flagKeys;
-    
-    const { data } = await this.client.post<Record<string, boolean | string>>(
-      this.getProjectUrl('feature_flags/evaluation/', projectId),
-      params
-    );
-    return data;
-  }
-
   // Dashboards
   async listDashboards(
     limit = 100,

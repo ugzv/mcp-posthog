@@ -29,12 +29,6 @@ export const featureFlagsUpdateSchema = z.object({
   project_id: z.string().optional().describe('Project ID (uses default if not provided)')
 });
 
-export const featureFlagsEvaluateSchema = z.object({
-  distinct_id: z.string().describe('User distinct ID to evaluate flags for'),
-  flag_keys: z.array(z.string()).optional().describe('Specific flag keys to evaluate (evaluates all if not provided)'),
-  project_id: z.string().optional().describe('Project ID (uses default if not provided)')
-});
-
 export const featureFlagsDeleteSchema = z.object({
   flag_id: z.string().describe('Feature flag ID to delete'),
   project_id: z.string().optional().describe('Project ID (uses default if not provided)')
@@ -90,25 +84,6 @@ export function registerFeatureFlagsTools(client: PostHogClient) {
           content: [{
             type: 'text' as const,
             text: JSON.stringify(flag, null, 2)
-          }]
-        };
-      }
-    },
-
-    feature_flags_evaluate: {
-      description: 'Evaluate feature flags for a specific user',
-      inputSchema: featureFlagsEvaluateSchema,
-      handler: async (input: z.infer<typeof featureFlagsEvaluateSchema>) => {
-        const evaluation = await client.evaluateFeatureFlags(
-          input.distinct_id,
-          input.flag_keys,
-          input.project_id
-        );
-        
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify(evaluation, null, 2)
           }]
         };
       }

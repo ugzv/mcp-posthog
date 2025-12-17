@@ -133,7 +133,7 @@ Ask Claude to:
 ## Available Tools
 
 **Analytics**: insights, trends, funnels, retention queries
-**Feature Flags**: create, update, evaluate, and manage flags
+**Feature Flags**: create, update, and manage flags
 **Users**: search, update, merge, and delete person data
 **Dashboards**: create and manage analytics dashboards
 **Events**: capture custom events and query with HogQL
