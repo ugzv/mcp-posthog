@@ -1,105 +1,84 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { PostHogClient } from '../client/posthog-client';
+import { readOnly, create, textResult } from './_helpers';
 
 export const eventsCaptureSchema = z.object({
-  event_name: z.string().describe('Name of the event'),
+  event_name: z.string().describe('Event name'),
   distinct_id: z.string().describe('User distinct ID'),
-  properties: z.record(z.any()).optional().describe('Event properties'),
-  timestamp: z.string().optional().describe('Event timestamp (ISO 8601 format)')
+  properties: z.record(z.any()).optional(),
+  timestamp: z.string().optional().describe('ISO 8601 timestamp'),
 });
 
 export const eventsQuerySchema = z.object({
-  query: z.string().describe('HogQL query to execute'),
+  query: z.string().describe('HogQL query'),
   date_range: z.object({
     date_from: z.string().optional(),
-    date_to: z.string().optional()
-  }).optional().describe('Date range for the query'),
-  limit: z.number().min(1).max(10000).default(100).describe('Maximum number of results'),
-  variables: z.record(z.any()).optional().describe('Query variables'),
-  project_id: z.string().optional().describe('Project ID (uses default if not provided)')
+    date_to: z.string().optional(),
+  }).optional().describe('Injected as timestamp filter'),
+  limit: z.number().min(1).max(10000).default(100),
+  variables: z.record(z.any()).optional(),
+  project_id: z.string().optional(),
 });
 
-export function registerEventsTools(client: PostHogClient) {
-  return {
-    events_capture: {
-      description: 'Send custom events to PostHog',
-      inputSchema: eventsCaptureSchema,
-      handler: async (input: z.infer<typeof eventsCaptureSchema>) => {
-        try {
-          await client.captureEvent({
-            event: input.event_name,
-            distinct_id: input.distinct_id,
-            properties: input.properties,
-            timestamp: input.timestamp
-          });
-          
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `Event "${input.event_name}" captured successfully for user ${input.distinct_id}`
-            }]
-          };
-        } catch (error: any) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `Failed to capture event: ${error.message}\n\nNote: Event capture requires a project API key to be configured.`
-            }]
-          };
-        }
-      }
+export function registerEventsTools(server: McpServer, client: PostHogClient): void {
+  server.registerTool(
+    'events_capture',
+    {
+      title: 'Capture event',
+      description: 'Send a custom event to PostHog (requires project API key)',
+      inputSchema: eventsCaptureSchema.shape,
+      annotations: create,
     },
+    async (input) => {
+      await client.captureEvent({
+        event: input.event_name,
+        distinct_id: input.distinct_id,
+        properties: input.properties,
+        timestamp: input.timestamp,
+      });
+      return textResult(`Event "${input.event_name}" captured for ${input.distinct_id}`);
+    },
+  );
 
-    events_query: {
-      description: 'Query events using PostHog Query Language (HogQL)',
-      inputSchema: eventsQuerySchema,
-      handler: async (input: z.infer<typeof eventsQuerySchema>) => {
-        let query = input.query;
-        const variables = { ...(input.variables || {}) };
+  server.registerTool(
+    'events_query',
+    {
+      title: 'Query events (HogQL)',
+      description: 'Run a HogQL query with optional date_range injected as a timestamp filter',
+      inputSchema: eventsQuerySchema.shape,
+      annotations: readOnly,
+    },
+    async (input) => {
+      let query = input.query;
+      const variables = { ...(input.variables ?? {}) };
 
-        // Add date range to query if provided using parameterized variables
-        if (input.date_range) {
-          const conditions = [];
-          if (input.date_range.date_from) {
-            conditions.push('timestamp >= {date_from:DateTime}');
-            variables.date_from = input.date_range.date_from;
-          }
-          if (input.date_range.date_to) {
-            conditions.push('timestamp <= {date_to:DateTime}');
-            variables.date_to = input.date_range.date_to;
-          }
+      if (input.date_range) {
+        const conditions: string[] = [];
+        if (input.date_range.date_from) {
+          conditions.push('timestamp >= {date_from:DateTime}');
+          variables.date_from = input.date_range.date_from;
+        }
+        if (input.date_range.date_to) {
+          conditions.push('timestamp <= {date_to:DateTime}');
+          variables.date_to = input.date_range.date_to;
+        }
 
-          if (conditions.length > 0) {
-            // If the query already has a WHERE clause, add to it
-            if (query.toLowerCase().includes('where')) {
-              query = query.replace(/where/i, `WHERE (${conditions.join(' AND ')}) AND `);
-            } else if (query.toLowerCase().includes('from')) {
-              // Add WHERE clause after FROM
-              const fromIndex = query.toLowerCase().lastIndexOf('from');
-              const afterFrom = query.substring(fromIndex);
-              const beforeFrom = query.substring(0, fromIndex);
-              const fromMatch = afterFrom.match(/from\s+(\S+)/i);
-              if (fromMatch) {
-                const tableName = fromMatch[1];
-                query = `${beforeFrom}FROM ${tableName} WHERE ${conditions.join(' AND ')} ${afterFrom.substring(fromMatch[0].length)}`;
-              }
+        if (conditions.length > 0) {
+          if (/where/i.test(query)) {
+            query = query.replace(/where/i, `WHERE (${conditions.join(' AND ')}) AND `);
+          } else {
+            const fromMatch = query.match(/from\s+\S+/i);
+            if (fromMatch) {
+              const idx = query.toLowerCase().lastIndexOf(fromMatch[0].toLowerCase());
+              query = `${query.slice(0, idx + fromMatch[0].length)} WHERE ${conditions.join(' AND ')}${query.slice(idx + fromMatch[0].length)}`;
             }
           }
         }
-
-        const result = await client.queryEvents({
-          query,
-          variables,
-          limit: input.limit
-        }, input.project_id);
-
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify(result, null, 2)
-          }]
-        };
       }
-    }
-  };
+
+      const result = await client.queryEvents({ query, variables, limit: input.limit }, input.project_id);
+      return textResult(result);
+    },
+  );
 }

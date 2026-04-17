@@ -4,42 +4,32 @@ const fs = require('fs');
 const path = require('path');
 
 async function build() {
-  console.log('Building PostHog MCP Server...');
-
-  // Clean dist directory
   const distPath = path.join(__dirname, 'dist');
   if (fs.existsSync(distPath)) {
     fs.rmSync(distPath, { recursive: true, force: true });
   }
   fs.mkdirSync(distPath);
 
-  // Build with esbuild
   await esbuild.build({
     entryPoints: ['src/index.ts'],
     bundle: true,
     platform: 'node',
     target: 'node18',
     outfile: 'dist/index.js',
-    external: [
-      '@modelcontextprotocol/sdk',
-      'axios',
-      'zod',
-      'dotenv'
-    ],
+    external: ['@modelcontextprotocol/sdk', 'axios', 'zod', 'dotenv'],
+    banner: { js: '#!/usr/bin/env node' },
     sourcemap: true,
-    minify: false // Keep readable for debugging
-    // Remove banner for Windows compatibility
+    minify: false,
   });
 
-  // Make the output file executable
   if (process.platform !== 'win32') {
     execSync('chmod +x dist/index.js');
   }
 
-  console.log('Build completed successfully!');
+  console.log('Build complete');
 }
 
-build().catch((error) => {
-  console.error('Build failed:', error);
+build().catch((err) => {
+  console.error('Build failed:', err);
   process.exit(1);
 });

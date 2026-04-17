@@ -1,107 +1,116 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { PostHogClient } from '../client/posthog-client';
+import { readOnly, create, update, destroy, textResult } from './_helpers';
 
 export const featureFlagsListSchema = z.object({
-  active_only: z.boolean().default(false).describe('Only show active flags'),
-  search: z.string().optional().describe('Search term'),
-  limit: z.number().min(1).max(1000).default(100).describe('Maximum number of results'),
-  offset: z.number().min(0).default(0).describe('Number of results to skip'),
-  project_id: z.string().optional().describe('Project ID (uses default if not provided)')
+  active_only: z.boolean().default(false),
+  search: z.string().optional(),
+  limit: z.number().min(1).max(1000).default(100),
+  offset: z.number().min(0).default(0),
+  project_id: z.string().optional(),
+});
+
+export const featureFlagsGetSchema = z.object({
+  flag_id: z.string().describe('Feature flag ID'),
+  project_id: z.string().optional(),
 });
 
 export const featureFlagsCreateSchema = z.object({
-  key: z.string().describe('Unique key for the feature flag'),
-  name: z.string().describe('Display name for the feature flag'),
+  key: z.string().describe('Unique flag key'),
+  name: z.string().describe('Display name'),
   filters: z.record(z.any()).optional().describe('Targeting filters'),
-  rollout_percentage: z.number().min(0).max(100).optional().describe('Percentage rollout'),
-  active: z.boolean().default(true).describe('Whether the flag is active'),
-  ensure_experience_continuity: z.boolean().optional().describe('Ensure users see consistent flag values'),
-  project_id: z.string().optional().describe('Project ID (uses default if not provided)')
+  rollout_percentage: z.number().min(0).max(100).optional(),
+  active: z.boolean().default(true),
+  ensure_experience_continuity: z.boolean().optional(),
+  project_id: z.string().optional(),
 });
 
 export const featureFlagsUpdateSchema = z.object({
-  flag_id: z.string().describe('Feature flag ID'),
-  active: z.boolean().optional().describe('Whether the flag is active'),
-  filters: z.record(z.any()).optional().describe('Updated targeting filters'),
-  rollout_percentage: z.number().min(0).max(100).optional().describe('Updated rollout percentage'),
-  name: z.string().optional().describe('Updated display name'),
-  ensure_experience_continuity: z.boolean().optional().describe('Update experience continuity setting'),
-  project_id: z.string().optional().describe('Project ID (uses default if not provided)')
+  flag_id: z.string(),
+  active: z.boolean().optional(),
+  filters: z.record(z.any()).optional(),
+  rollout_percentage: z.number().min(0).max(100).optional(),
+  name: z.string().optional(),
+  ensure_experience_continuity: z.boolean().optional(),
+  project_id: z.string().optional(),
 });
 
 export const featureFlagsDeleteSchema = z.object({
-  flag_id: z.string().describe('Feature flag ID to delete'),
-  project_id: z.string().optional().describe('Project ID (uses default if not provided)')
+  flag_id: z.string(),
+  project_id: z.string().optional(),
 });
 
-export function registerFeatureFlagsTools(client: PostHogClient) {
-  return {
-    feature_flags_list: {
-      description: 'List all feature flags with their status',
-      inputSchema: featureFlagsListSchema,
-      handler: async (input: z.infer<typeof featureFlagsListSchema>) => {
-        const flags = await client.listFeatureFlags(
-          input.active_only,
-          input.search,
-          input.limit,
-          input.offset,
-          input.project_id
-        );
-        
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify(flags, null, 2)
-          }]
-        };
-      }
+export function registerFeatureFlagsTools(server: McpServer, client: PostHogClient): void {
+  server.registerTool(
+    'feature_flags_list',
+    {
+      title: 'List feature flags',
+      description: 'List all feature flags',
+      inputSchema: featureFlagsListSchema.shape,
+      annotations: readOnly,
     },
+    async (input) => {
+      const flags = await client.listFeatureFlags(input.active_only, input.search, input.limit, input.offset, input.project_id);
+      return textResult(flags);
+    },
+  );
 
-    feature_flags_create: {
+  server.registerTool(
+    'feature_flags_get',
+    {
+      title: 'Get feature flag',
+      description: 'Get a single feature flag by id',
+      inputSchema: featureFlagsGetSchema.shape,
+      annotations: readOnly,
+    },
+    async (input) => {
+      const flag = await client.getFeatureFlag(input.flag_id, input.project_id);
+      return textResult(flag);
+    },
+  );
+
+  server.registerTool(
+    'feature_flags_create',
+    {
+      title: 'Create feature flag',
       description: 'Create a new feature flag',
-      inputSchema: featureFlagsCreateSchema,
-      handler: async (input: z.infer<typeof featureFlagsCreateSchema>) => {
-        const { project_id, ...params } = input;
-        const flag = await client.createFeatureFlag(params, project_id);
-        
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify(flag, null, 2)
-          }]
-        };
-      }
+      inputSchema: featureFlagsCreateSchema.shape,
+      annotations: create,
     },
-
-    feature_flags_update: {
-      description: 'Update feature flag configuration',
-      inputSchema: featureFlagsUpdateSchema,
-      handler: async (input: z.infer<typeof featureFlagsUpdateSchema>) => {
-        const { flag_id, project_id, ...updates } = input;
-        const flag = await client.updateFeatureFlag(flag_id, updates, project_id);
-        
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify(flag, null, 2)
-          }]
-        };
-      }
+    async (input) => {
+      const { project_id, ...params } = input;
+      const flag = await client.createFeatureFlag(params, project_id);
+      return textResult(flag);
     },
+  );
 
-    feature_flags_delete: {
+  server.registerTool(
+    'feature_flags_update',
+    {
+      title: 'Update feature flag',
+      description: 'Update an existing feature flag',
+      inputSchema: featureFlagsUpdateSchema.shape,
+      annotations: update,
+    },
+    async (input) => {
+      const { flag_id, project_id, ...updates } = input;
+      const flag = await client.updateFeatureFlag(flag_id, updates, project_id);
+      return textResult(flag);
+    },
+  );
+
+  server.registerTool(
+    'feature_flags_delete',
+    {
+      title: 'Delete feature flag',
       description: 'Delete a feature flag',
-      inputSchema: featureFlagsDeleteSchema,
-      handler: async (input: z.infer<typeof featureFlagsDeleteSchema>) => {
-        await client.deleteFeatureFlag(input.flag_id, input.project_id);
-        
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `Feature flag ${input.flag_id} deleted successfully`
-          }]
-        };
-      }
-    }
-  };
+      inputSchema: featureFlagsDeleteSchema.shape,
+      annotations: destroy,
+    },
+    async (input) => {
+      await client.deleteFeatureFlag(input.flag_id, input.project_id);
+      return textResult(`Feature flag ${input.flag_id} deleted`);
+    },
+  );
 }

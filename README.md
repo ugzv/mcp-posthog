@@ -1,10 +1,14 @@
 # PostHog MCP Server
 
-Connect Claude to PostHog for analytics insights, feature flags, user management, and more.
+Connect Claude (and other MCP clients) to PostHog for analytics, feature flags, surveys, experiments, session recordings, and more.
+
+- **55 tools** across 13 domains with proper MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`)
+- **3 HogQL prompt templates** (top events, DAU, funnels) for quick analytics
+- **1 resource** (`posthog://project/current`) exposing project metadata
+- Automatic retry on `429` / 5xx with exponential backoff
+- stdio transport, built on `@modelcontextprotocol/sdk@^1.29`
 
 ## Quick Start
-
-### Installation
 
 ```bash
 git clone https://github.com/ugzv/mcp-posthog.git
@@ -13,49 +17,29 @@ npm install
 npm run build
 ```
 
-### Configuration
+You'll need two keys from PostHog:
 
-You'll need two API keys from PostHog:
-- **Personal API Key** (`phx_...`): For queries, dashboards, insights, feature flags
-  - Get it from: Account Settings → Personal API Keys
-- **Project API Key** (`phc_...`): For event capture (optional)
-  - Get it from: Project Settings → API Keys
+| Key | Prefix | Where | Used for |
+|-----|--------|-------|----------|
+| Personal API Key | `phx_*` | Account Settings → Personal API Keys | Management API (required) |
+| Project API Key | `phc_*` | Project Settings → API Keys | `events_capture` only (optional) |
 
-### Setup with Claude Desktop
+## Configure
 
-Add to your Claude Desktop config file:
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+### Claude Desktop
 
-#### PostHog Cloud (US)
+`~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) — replace `/abs/path/` and swap host as appropriate (`https://us.posthog.com`, `https://eu.posthog.com`, or your self-hosted URL):
+
 ```json
 {
   "mcpServers": {
     "posthog": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-posthog/dist/index.js"],
-      "env": {
-        "POSTHOG_HOST": "https://us.posthog.com",
-        "POSTHOG_API_KEY": "phx_your_personal_api_key",
-        "POSTHOG_PROJECT_API_KEY": "phc_your_project_api_key",
-        "POSTHOG_PROJECT_ID": "12345"
-      }
-    }
-  }
-}
-```
-
-#### PostHog Cloud (EU)
-```json
-{
-  "mcpServers": {
-    "posthog": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-posthog/dist/index.js"],
+      "args": ["/abs/path/mcp-posthog/dist/index.js"],
       "env": {
         "POSTHOG_HOST": "https://eu.posthog.com",
-        "POSTHOG_API_KEY": "phx_your_personal_api_key",
-        "POSTHOG_PROJECT_API_KEY": "phc_your_project_api_key",
+        "POSTHOG_API_KEY": "phx_...",
+        "POSTHOG_PROJECT_API_KEY": "phc_...",
         "POSTHOG_PROJECT_ID": "12345"
       }
     }
@@ -63,114 +47,77 @@ Add to your Claude Desktop config file:
 }
 ```
 
-#### Self-Hosted PostHog
-```json
-{
-  "mcpServers": {
-    "posthog": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-posthog/dist/index.js"],
-      "env": {
-        "POSTHOG_HOST": "https://posthog.yourcompany.com",
-        "POSTHOG_API_KEY": "phx_your_personal_api_key",
-        "POSTHOG_PROJECT_API_KEY": "phc_your_project_api_key",
-        "POSTHOG_PROJECT_ID": "1"
-      }
-    }
-  }
-}
-```
+### Claude Code CLI
 
-**Note**: Replace `/absolute/path/to/mcp-posthog` with the actual path to your cloned repository.
-
-### Setup with Claude Code CLI
-
-#### PostHog Cloud (US)
-```bash
-claude mcp add posthog \
-  --env POSTHOG_HOST=https://us.posthog.com \
-  --env POSTHOG_API_KEY=phx_your_personal_api_key \
-  --env POSTHOG_PROJECT_API_KEY=phc_your_project_api_key \
-  --env POSTHOG_PROJECT_ID=12345 \
-  -- node /absolute/path/to/mcp-posthog/dist/index.js
-```
-
-#### PostHog Cloud (EU)
 ```bash
 claude mcp add posthog \
   --env POSTHOG_HOST=https://eu.posthog.com \
-  --env POSTHOG_API_KEY=phx_your_personal_api_key \
-  --env POSTHOG_PROJECT_API_KEY=phc_your_project_api_key \
+  --env POSTHOG_API_KEY=phx_... \
+  --env POSTHOG_PROJECT_API_KEY=phc_... \
   --env POSTHOG_PROJECT_ID=12345 \
-  -- node /absolute/path/to/mcp-posthog/dist/index.js
+  -- node /abs/path/mcp-posthog/dist/index.js
 ```
 
-#### Self-Hosted PostHog
-```bash
-claude mcp add posthog \
-  --env POSTHOG_HOST=https://posthog.yourcompany.com \
-  --env POSTHOG_API_KEY=phx_your_personal_api_key \
-  --env POSTHOG_PROJECT_API_KEY=phc_your_project_api_key \
-  --env POSTHOG_PROJECT_ID=1 \
-  -- node /absolute/path/to/mcp-posthog/dist/index.js
-```
+Verify: `claude mcp list`.
 
-Verify the connection:
-```bash
-claude mcp list
-```
+## Tool catalog
 
-## What You Can Do
+| Domain | Tools |
+|--------|-------|
+| Insights | `insights_create`, `insights_retrieve`, `insights_list`, `insights_update`, `insights_delete` |
+| Persons | `persons_search`, `persons_get`, `persons_update`, `persons_merge`, `persons_delete` |
+| Feature flags | `feature_flags_list`, `feature_flags_get`, `feature_flags_create`, `feature_flags_update`, `feature_flags_delete` |
+| Dashboards | `dashboards_list`, `dashboards_get`, `dashboards_create`, `dashboards_update`, `dashboards_delete` |
+| Events | `events_capture`, `events_query` |
+| Cohorts | `cohorts_list`, `cohorts_get`, `cohorts_create`, `cohorts_get_members` |
+| Projects | `projects_list`, `projects_get` |
+| Query (HogQL) | `query_hogql`, `query_export` |
+| Annotations | `annotations_list`, `annotations_create`, `annotations_retrieve`, `annotations_update`, `annotations_delete` |
+| Actions | `actions_list`, `actions_create`, `actions_retrieve`, `actions_update`, `actions_delete` |
+| **Surveys** | `surveys_list`, `surveys_get`, `surveys_create`, `surveys_update`, `surveys_delete`, `surveys_stats` |
+| **Experiments** | `experiments_list`, `experiments_get`, `experiments_create`, `experiments_update`, `experiments_delete`, `experiments_duplicate` |
+| **Session recordings** | `session_recordings_list`, `session_recordings_get`, `session_recordings_delete` |
 
-Ask Claude to:
-- "Show me pageviews for the last 7 days"
-- "Create a feature flag for dark mode with 20% rollout"
-- "List all active users who signed up this month"
-- "Run a HogQL query to find top events"
-- "Create a funnel for signup → activation → purchase"
-- "Capture a custom event when users complete onboarding"
-
-## Available Tools
-
-**Analytics**: insights, trends, funnels, retention queries
-**Feature Flags**: create, update, and manage flags
-**Users**: search, update, merge, and delete person data
-**Dashboards**: create and manage analytics dashboards
-**Events**: capture custom events and query with HogQL
-**Cohorts**: create and manage user segments
-**Annotations**: mark deployments and key events on charts
-**Actions**: define and track custom user actions
+Prompts: `hogql_top_events`, `hogql_daily_active_users`, `hogql_funnel_template`.
 
 ## Development
 
 ```bash
-npm install           # Install dependencies
-npm run build         # Build TypeScript
-npm run dev           # Run in development mode
-npm run typecheck     # Type check
-npm run lint          # Lint code
+npm install        # install deps (0 vulnerabilities)
+npm run dev        # run server with tsx (hot)
+npm run build      # typecheck + esbuild bundle to dist/
+npm run typecheck  # tsc --noEmit
+npm run lint       # eslint (flat config)
+npm test           # jest
 ```
+
+Tests are fully mocked (`axios-mock-adapter`) — no network calls. Coverage includes the HTTP client (retry, errors, project-scoping), helpers, and config loading.
+
+## Environment variables
+
+| Var | Required | Purpose |
+|-----|----------|---------|
+| `POSTHOG_HOST` | yes | API host (e.g. `https://eu.posthog.com`) |
+| `POSTHOG_API_KEY` | yes | Personal API key (`phx_*`) |
+| `POSTHOG_PROJECT_API_KEY` | no | Project key (`phc_*`) for event capture |
+| `POSTHOG_PROJECT_ID` | no | Default project ID (required for most tools when using a scoped key) |
+| `MCP_SERVER_NAME` | no | Override server identity |
+| `MCP_SERVER_VERSION` | no | Override reported version |
+
+You can also use a `posthog-mcp.config.json` file (`posthog-mcp --init` creates a template). Env vars take precedence.
 
 ## Troubleshooting
 
-**Connection Issues**
-- Verify `POSTHOG_HOST` matches your PostHog instance (US/EU/self-hosted)
-- Check that personal API key starts with `phx_`
-- Ensure `POSTHOG_PROJECT_ID` is correct (find it in PostHog project settings)
-
-**Event Capture Not Working**
-- Add a Project API Key (`phc_...`) from Project Settings → API Keys
-- Personal API keys cannot be used for event capture
-
-**Project-Scoped API Keys**
-- If your personal key is project-scoped (most common), the MCP handles this automatically
-- You can only access data from your configured project
+- **`401` / `authentication_failed`**: `POSTHOG_HOST` is wrong. Use `https://eu.posthog.com` or `https://us.posthog.com` — **not** the `eu.i.posthog.com` ingestion host.
+- **`Project ID is required`**: Set `POSTHOG_PROJECT_ID` or pass `project_id` per-tool.
+- **`Event capture requires a project API key`**: Set `POSTHOG_PROJECT_API_KEY` (`phc_*`).
+- **Scoped key limitations**: If your personal key is project-scoped (the common case), `projects_list` returns only the configured project.
 
 ## Links
 
-- [PostHog Documentation](https://posthog.com/docs)
-- [MCP Protocol](https://modelcontextprotocol.io)
-- [GitHub Issues](https://github.com/ugzv/mcp-posthog/issues)
+- PostHog API docs: https://posthog.com/docs/api
+- MCP specification: https://modelcontextprotocol.io
+- Issues: https://github.com/ugzv/mcp-posthog/issues
 
 ## License
 

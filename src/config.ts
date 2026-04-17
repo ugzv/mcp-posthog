@@ -4,102 +4,67 @@ import { config as dotenv } from 'dotenv';
 
 export interface Config {
   host: string;
-  apiKey: string;  // Personal API key for management operations
-  projectApiKey?: string;  // Project API key for event capture
+  apiKey: string;
+  projectApiKey?: string;
   projectId?: string;
   serverName?: string;
   serverVersion?: string;
-  rateLimit?: {
-    maxRequestsPerMinute?: number;
-  };
-  cache?: {
-    enabled?: boolean;
-    ttl?: number;
-  };
 }
 
 export function loadConfig(): Config {
-  // Load environment variables
   dotenv();
 
-  // Check for config file
-  const configPath = process.env.POSTHOG_CONFIG_PATH || path.join(process.cwd(), 'posthog-mcp.config.json');
-  
+  const configPath = process.env.POSTHOG_CONFIG_PATH ?? path.join(process.cwd(), 'posthog-mcp.config.json');
   let fileConfig: Partial<Config> = {};
   if (fs.existsSync(configPath)) {
     try {
-      const configContent = fs.readFileSync(configPath, 'utf-8');
-      fileConfig = JSON.parse(configContent);
-    } catch (error) {
-      console.error(`Failed to parse config file at ${configPath}:`, error);
+      fileConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Partial<Config>;
+    } catch (err) {
+      console.error(`Failed to parse config file at ${configPath}:`, err);
     }
   }
 
-  // Environment variables take precedence over config file
   const config: Config = {
-    host: process.env.POSTHOG_HOST || fileConfig.host || '',
-    apiKey: process.env.POSTHOG_API_KEY || fileConfig.apiKey || '',
-    projectApiKey: process.env.POSTHOG_PROJECT_API_KEY || fileConfig.projectApiKey,
-    projectId: process.env.POSTHOG_PROJECT_ID || fileConfig.projectId,
-    serverName: process.env.MCP_SERVER_NAME || fileConfig.serverName || 'posthog-mcp',
-    serverVersion: process.env.MCP_SERVER_VERSION || fileConfig.serverVersion || '1.0.0',
-    rateLimit: {
-      maxRequestsPerMinute: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '') || 
-                            fileConfig.rateLimit?.maxRequestsPerMinute || 200
-    },
-    cache: {
-      enabled: process.env.CACHE_ENABLED === 'true' || fileConfig.cache?.enabled || false,
-      ttl: parseInt(process.env.CACHE_TTL || '') || fileConfig.cache?.ttl || 300
-    }
+    host: process.env.POSTHOG_HOST ?? fileConfig.host ?? '',
+    apiKey: process.env.POSTHOG_API_KEY ?? fileConfig.apiKey ?? '',
+    projectApiKey: process.env.POSTHOG_PROJECT_API_KEY ?? fileConfig.projectApiKey,
+    projectId: process.env.POSTHOG_PROJECT_ID ?? fileConfig.projectId,
+    serverName: process.env.MCP_SERVER_NAME ?? fileConfig.serverName ?? 'posthog-mcp',
+    serverVersion: process.env.MCP_SERVER_VERSION ?? fileConfig.serverVersion ?? '2.0.0',
   };
 
-  // Validate required fields
   if (!config.host) {
-    throw new Error('POSTHOG_HOST is required. Set it via environment variable or config file.');
+    throw new Error('POSTHOG_HOST is required (set env var or configure in posthog-mcp.config.json)');
   }
-
   if (!config.apiKey) {
-    throw new Error('POSTHOG_API_KEY is required. Set it via environment variable or config file.');
+    throw new Error('POSTHOG_API_KEY is required (set env var or configure in posthog-mcp.config.json)');
   }
 
-  // Ensure host is properly formatted
-  if (!config.host.startsWith('http://') && !config.host.startsWith('https://')) {
+  if (!/^https?:\/\//.test(config.host)) {
     config.host = `https://${config.host}`;
   }
 
   return config;
 }
 
-export function validateApiKey(apiKey: string): boolean {
-  // Personal API keys typically start with 'phx_' or similar patterns
-  // Project API keys typically start with 'phc_'
-  return apiKey.length > 0;
-}
-
 export function isPersonalApiKey(apiKey: string): boolean {
-  // Personal API keys usually start with 'phx_' or have a specific pattern
-  return apiKey.startsWith('phx_') || apiKey.length > 40;
+  return apiKey.startsWith('phx_');
 }
 
 export function isProjectApiKey(apiKey: string): boolean {
-  // Project API keys usually start with 'phc_'
   return apiKey.startsWith('phc_');
 }
 
 export function createConfigFile(outputPath?: string): void {
-  const configPath = outputPath || path.join(process.cwd(), 'posthog-mcp.config.json');
-  
+  const configPath = outputPath ?? path.join(process.cwd(), 'posthog-mcp.config.json');
   const sampleConfig = {
-    host: "https://posthog.myteam.network",
-    apiKey: "<your_personal_api_key>",
-    projectApiKey: "<your_project_api_key>",
-    projectId: "<optional_default_project_id>",
-    serverName: "posthog-mcp",
-    serverVersion: "1.0.0"
-    // Note: rateLimit and cache options are not yet implemented
+    host: 'https://eu.posthog.com',
+    apiKey: '<your_personal_api_key>',
+    projectApiKey: '<your_project_api_key>',
+    projectId: '<default_project_id>',
+    serverName: 'posthog-mcp',
+    serverVersion: '2.0.0',
   };
-
   fs.writeFileSync(configPath, JSON.stringify(sampleConfig, null, 2));
   console.log(`Sample configuration file created at: ${configPath}`);
-  console.log('Please edit this file with your PostHog credentials.');
 }

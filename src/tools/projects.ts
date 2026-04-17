@@ -1,52 +1,28 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { PostHogClient } from '../client/posthog-client';
+import { readOnly, textResult } from './_helpers';
 
-export const projectsListSchema = z.object({});
-
-export const projectsGetSettingsSchema = z.object({
-  project_id: z.string().describe('Project ID')
-});
-
-export function registerProjectsTools(client: PostHogClient) {
-  return {
-    projects_list: {
-      description: 'List accessible projects (returns configured project if using scoped API key)',
-      inputSchema: projectsListSchema,
-      handler: async () => {
-        try {
-          const projects = await client.listProjects();
-          
-          return {
-            content: [{
-              type: 'text' as const,
-              text: JSON.stringify(projects, null, 2)
-            }]
-          };
-        } catch (error: any) {
-          // Provide helpful context about the error
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `Error: ${error.message}\n\nNote: If you're using a project-scoped API key, you can only access the configured project. Use projects_get_settings with your project ID instead.`
-            }]
-          };
-        }
-      }
+export function registerProjectsTools(server: McpServer, client: PostHogClient): void {
+  server.registerTool(
+    'projects_list',
+    {
+      title: 'List projects',
+      description: 'List accessible projects (returns just the configured project when a project-scoped key is used)',
+      inputSchema: {},
+      annotations: readOnly,
     },
+    async () => textResult(await client.listProjects()),
+  );
 
-    projects_get_settings: {
+  server.registerTool(
+    'projects_get',
+    {
+      title: 'Get project',
       description: 'Get project configuration',
-      inputSchema: projectsGetSettingsSchema,
-      handler: async (input: z.infer<typeof projectsGetSettingsSchema>) => {
-        const project = await client.getProject(input.project_id);
-        
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify(project, null, 2)
-          }]
-        };
-      }
-    }
-  };
+      inputSchema: { project_id: z.string().describe('Project ID') },
+      annotations: readOnly,
+    },
+    async ({ project_id }) => textResult(await client.getProject(project_id)),
+  );
 }

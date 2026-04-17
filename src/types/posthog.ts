@@ -253,3 +253,78 @@ export interface ActionCreateParams {
   post_to_slack?: boolean;
   slack_message_format?: string;
 }
+
+export interface Survey {
+  id: string;
+  name: string;
+  description?: string;
+  type: string;
+  linked_flag?: number | null;
+  targeting_flag?: number | null;
+  questions?: any[];
+  conditions?: any;
+  appearance?: any;
+  created_at: string;
+  created_by?: any;
+  start_date?: string | null;
+  end_date?: string | null;
+  archived?: boolean;
+}
+
+export interface SurveyCreateParams {
+  name: string;
+  description?: string;
+  type: 'popover' | 'button' | 'email' | 'api' | 'widget';
+  questions?: any[];
+  conditions?: any;
+  appearance?: any;
+  linked_flag_id?: number;
+  targeting_flag_filters?: any;
+  start_date?: string | null;
+  end_date?: string | null;
+  archived?: boolean;
+}
+
+export interface Experiment {
+  id: number;
+  name: string;
+  description?: string;
+  feature_flag?: any;
+  parameters?: any;
+  start_date?: string | null;
+  end_date?: string | null;
+  archived?: boolean;
+  created_at: string;
+  created_by?: any;
+  filters?: any;
+  metrics?: any[];
+}
+
+export interface ExperimentCreateParams {
+  name: string;
+  description?: string;
+  feature_flag_key?: string;
+  parameters?: any;
+  filters?: any;
+  metrics?: any[];
+  start_date?: string | null;
+  end_date?: string | null;
+}
+
+export interface SessionRecording {
+  id: string;
+  distinct_id?: string;
+  viewed?: boolean;
+  recording_duration?: number;
+  active_seconds?: number;
+  inactive_seconds?: number;
+  start_time?: string;
+  end_time?: string;
+  click_count?: number;
+  keypress_count?: number;
+  console_log_count?: number;
+  console_warn_count?: number;
+  console_error_count?: number;
+  start_url?: string;
+  person?: Person;
+}
