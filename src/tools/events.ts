@@ -45,7 +45,12 @@ export function registerEventsTools(server: McpServer, client: PostHogClient): v
     'events_query',
     {
       title: 'Query events (HogQL)',
-      description: 'Run a HogQL query with optional date_range injected as a timestamp filter',
+      description:
+        'Run a HogQL query with optional date_range injected as a timestamp filter. ' +
+        'Schema note for $exception events: properties use plural ARRAY names — ' +
+        '$exception_types, $exception_values, $exception_sources, $exception_stack_trace_raw ' +
+        '(and scalar $exception_fingerprint). The singular $exception_type / $exception_message ' +
+        'do not exist. Read via arrayElement(field, 1).',
       inputSchema: eventsQuerySchema.shape,
       annotations: readOnly,
     },

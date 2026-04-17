@@ -96,6 +96,7 @@ export function registerFooTools(server: McpServer, client: PostHogClient): void
 - **Insights**: Use `InsightVizNode` wrapper around `TrendsQuery`/`FunnelsQuery`/etc. `insights_create` supports both simple (`insight_type` + `event` + `math`) and advanced (`raw_query`) paths.
 - **Annotations & actions**: Hard delete not allowed — tools PATCH `deleted: true`.
 - **Retries**: client auto-retries up to 2× on `429` (honoring `Retry-After`) and 5xx with exponential backoff.
+- **`$exception` events** use plural array fields (`$exception_types`, `$exception_values`, `$exception_sources`, `$exception_stack_trace_raw`) + scalar `$exception_fingerprint`. The singular `$exception_type` / `$exception_message` **do not exist** — querying them returns `NULL` silently. See `posthog-api-docs-md/error-tracking.md`. This gotcha is also called out in the `query_hogql` and `events_query` tool descriptions so MCP clients see it on every call.
 
 ## Testing
 

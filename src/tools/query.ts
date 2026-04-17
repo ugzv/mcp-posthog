@@ -21,7 +21,13 @@ export function registerQueryTools(server: McpServer, client: PostHogClient): vo
     'query_hogql',
     {
       title: 'Run HogQL query',
-      description: 'Execute a HogQL query directly',
+      description:
+        'Execute a HogQL query against the PostHog events/persons store. ' +
+        'Schema note for $exception events: properties use plural ARRAY names — ' +
+        '$exception_types, $exception_values, $exception_sources, $exception_stack_trace_raw ' +
+        '(and scalar $exception_fingerprint). The singular $exception_type / $exception_message ' +
+        'do not exist; querying them returns NULL silently. Read via arrayElement(field, 1). ' +
+        'If a field returns all NULL, run SELECT JSONExtractKeys(properties) ... LIMIT 1 first.',
       inputSchema: queryHogqlSchema.shape,
       annotations: readOnly,
     },
