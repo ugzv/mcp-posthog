@@ -4,11 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1]
+
+### Fixed
+
+- **HogQL variable binding was broken in 2.0.0 and earlier** — the client was sending `variables` at the top level of the request body, which PostHog's API rejects with `extra_forbidden`. Variables now ride inside the `HogQLQuery` node as `values`, and placeholders use the plain `{name}` syntax (no `:Type` annotation — that syntax looks up a column, not a bound variable). Verified against live PostHog API. Affected: `query_hogql`, `events_query`, `query_export`.
+- `insights_create`: legacy v1 `query` and `events` input fields are now accepted again (and given precedence over the simple path). Callers stuck on the old shape no longer silently create a default `$pageview` trends insight when their intent was different.
+- `events_query`: removed fragile WHERE-clause string surgery that mis-injected the timestamp filter into nested-FROM queries or aliased tables. `date_from` / `date_to` are now simply bound as HogQL placeholders — callers reference them as `{date_from}` / `{date_to}` in their own WHERE. Tool description updated.
+- `PostHogClient` retry: `Retry-After` header is now parsed as either delta-seconds (RFC 7231 §7.1.3) or HTTP-date. Previously HTTP-date values silently fell through to exponential backoff.
+- `session_recordings_get`: description now explicitly steers callers to the PostHog UI for raw replay data.
+- `buildInsightQuery` extracted and tested (9 new cases) so insight-payload assembly has direct unit coverage.
+
 ## [2.0.0]
 
 ### Breaking
 
 - Migrated to modern `McpServer.registerTool()` API. Tool module signature is now `register(server, client)` instead of returning a tool map. External code that called `registerInsightsTools(client)` and composed the result must switch to the new shape.
+- **`insights_create_simple` removed** — merged into `insights_create`. Callers using the old name will get "Tool not found". Migrate by moving the `insight_type` / `event` / `math` / `breakdown_by` args directly into `insights_create`.
 - Removed unused `RATE_LIMIT_MAX_REQUESTS`, `CACHE_ENABLED`, and `CACHE_TTL` config options — they were read but never wired. Replaced by a built-in `429`/`5xx` retry with exponential backoff.
 
 ### Added

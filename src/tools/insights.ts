@@ -17,16 +17,65 @@ const queryKindMap: Record<string, string> = {
   stickiness: 'StickinessQuery',
 };
 
+interface InsightBuildInput {
+  raw_query?: Record<string, unknown>;
+  query?: Record<string, unknown>;
+  events?: Record<string, unknown>[];
+  insight_type?: string;
+  event?: string;
+  math?: string;
+  date_from?: string;
+  date_to?: string;
+  breakdown_by?: string;
+}
+
+/**
+ * Exported for testing. Builds the PostHog insight `query` payload. Precedence:
+ *   raw_query > query (legacy v1) > events[] (legacy v1) > insight_type+event simple path.
+ */
+export function buildInsightQuery(input: InsightBuildInput): { kind: 'InsightVizNode'; source: Record<string, unknown> } {
+  if (input.raw_query) {
+    return { kind: 'InsightVizNode', source: input.raw_query };
+  }
+  if (input.query) {
+    const q = input.query;
+    if (q.kind === 'InsightVizNode') return q as { kind: 'InsightVizNode'; source: Record<string, unknown> };
+    if (q.source) return { kind: 'InsightVizNode', source: q.source as Record<string, unknown> };
+    return { kind: 'InsightVizNode', source: q };
+  }
+
+  const series = input.events && input.events.length > 0
+    ? input.events.map((e) => ({
+        kind: 'EventsNode',
+        event: (e.id as string | undefined) ?? (e.name as string | undefined) ?? '$pageview',
+        math: (e.math as string | undefined) ?? 'total',
+      }))
+    : [{ kind: 'EventsNode', event: input.event ?? '$pageview', math: input.math ?? 'total' }];
+
+  const source: Record<string, unknown> = {
+    kind: queryKindMap[input.insight_type ?? 'trends'],
+    series,
+    dateRange: { date_from: input.date_from, date_to: input.date_to },
+  };
+  if (input.breakdown_by) {
+    source.breakdownFilter = { breakdown: input.breakdown_by, breakdown_type: 'event' };
+  }
+  return { kind: 'InsightVizNode', source };
+}
+
 export const insightsCreateSchema = z.object({
   name: z.string().describe('Name of the insight'),
   description: z.string().optional().describe('Description'),
-  insight_type: insightTypeEnum.optional().describe('Simple path: insight type (trends, funnel, ...). Ignored if raw_query is provided.'),
+  insight_type: insightTypeEnum.optional().describe('Simple path: insight type (trends, funnel, ...). Ignored if raw_query or query is provided.'),
   event: z.string().optional().describe('Simple path: event to track (e.g. $pageview). Default: $pageview'),
   math: mathEnum.optional().describe('Simple path: aggregation method. Default: total'),
   date_from: z.string().optional().describe('Simple path: start date (e.g. -7d)'),
   date_to: z.string().optional().describe('Simple path: end date (e.g. 0d)'),
   breakdown_by: z.string().optional().describe('Simple path: property to breakdown by (e.g. $browser)'),
-  raw_query: z.record(z.any()).optional().describe('Advanced: full PostHog query source (TrendsQuery / FunnelsQuery / etc.) — overrides simple-path fields'),
+  raw_query: z.record(z.any()).optional().describe('Advanced: full PostHog query source (TrendsQuery / FunnelsQuery / etc.) — wrapped in InsightVizNode for you'),
+  // --- Legacy v1 fields (still accepted so pre-v2 callers keep working) ---
+  query: z.record(z.any()).optional().describe('Legacy v1 field: full query object. Passed through as-is. Prefer raw_query.'),
+  events: z.array(z.record(z.any())).optional().describe('Legacy v1 field: events array for multi-series. Prefer raw_query for advanced shapes.'),
   dashboards: z.array(z.number()).optional().describe('Dashboard IDs to add insight to'),
   tags: z.array(z.string()).optional().describe('Tags'),
   project_id: z.string().optional().describe('Project ID override'),
@@ -66,34 +115,20 @@ export function registerInsightsTools(server: McpServer, client: PostHogClient):
     'insights_create',
     {
       title: 'Create insight',
-      description: 'Create a PostHog insight. Use insight_type + event (simple) or raw_query (advanced) — not both.',
+      description:
+        'Create a PostHog insight. Precedence: raw_query > query (legacy) > events array (legacy) > insight_type+event simple path.',
       inputSchema: insightsCreateSchema.shape,
       annotations: create,
     },
     async (input) => {
-      const { project_id, raw_query, insight_type, event, math, date_from, date_to, breakdown_by, ...params } = input;
-
-      const insightParams: Record<string, unknown> = {
-        name: params.name,
-        description: params.description,
-        dashboards: params.dashboards,
-        tags: params.tags,
+      const { project_id, name, description, dashboards, tags, ...rest } = input;
+      const insightParams = {
+        name,
+        description,
+        dashboards,
+        tags,
+        query: buildInsightQuery(rest),
       };
-
-      if (raw_query) {
-        insightParams.query = { kind: 'InsightVizNode', source: raw_query };
-      } else {
-        const source: Record<string, unknown> = {
-          kind: queryKindMap[insight_type ?? 'trends'],
-          series: [{ kind: 'EventsNode', event: event ?? '$pageview', math: math ?? 'total' }],
-          dateRange: { date_from, date_to },
-        };
-        if (breakdown_by) {
-          source.breakdownFilter = { breakdown: breakdown_by, breakdown_type: 'event' };
-        }
-        insightParams.query = { kind: 'InsightVizNode', source };
-      }
-
       const insight = await client.createInsight(insightParams, project_id);
       return textResult(insight);
     },

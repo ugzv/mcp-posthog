@@ -48,7 +48,9 @@ export function registerSessionRecordingsTools(server: McpServer, client: PostHo
     'session_recordings_get',
     {
       title: 'Get session recording metadata',
-      description: 'Get metadata for a session recording. Raw replay JSON is not returned by the API.',
+      description:
+        'Get metadata (duration, counts, start_url, person) for a session recording. ' +
+        'Raw replay JSON is NOT returned by the API — use PostHog UI → replay options → Export as JSON for that.',
       inputSchema: sessionRecordingsGetSchema.shape,
       annotations: readOnly,
     },

@@ -15,7 +15,7 @@ export const eventsQuerySchema = z.object({
   date_range: z.object({
     date_from: z.string().optional(),
     date_to: z.string().optional(),
-  }).optional().describe('Injected as timestamp filter'),
+  }).optional().describe('Exposed as HogQL placeholders {date_from} and {date_to}. Reference them in your WHERE clause (no type annotation — plain braces).'),
   limit: z.number().min(1).max(10000).default(100),
   variables: z.record(z.any()).optional(),
   project_id: z.string().optional(),
@@ -46,7 +46,8 @@ export function registerEventsTools(server: McpServer, client: PostHogClient): v
     {
       title: 'Query events (HogQL)',
       description:
-        'Run a HogQL query with optional date_range injected as a timestamp filter. ' +
+        'Run a HogQL query. When date_range is supplied, date_from/date_to are bound as HogQL placeholders — ' +
+        'reference them in your WHERE clause as {date_from} and {date_to} (plain braces, no type annotation). ' +
         'Schema note for $exception events: properties use plural ARRAY names — ' +
         '$exception_types, $exception_values, $exception_sources, $exception_stack_trace_raw ' +
         '(and scalar $exception_fingerprint). The singular $exception_type / $exception_message ' +
@@ -55,34 +56,11 @@ export function registerEventsTools(server: McpServer, client: PostHogClient): v
       annotations: readOnly,
     },
     async (input) => {
-      let query = input.query;
       const variables = { ...(input.variables ?? {}) };
+      if (input.date_range?.date_from) variables.date_from = input.date_range.date_from;
+      if (input.date_range?.date_to) variables.date_to = input.date_range.date_to;
 
-      if (input.date_range) {
-        const conditions: string[] = [];
-        if (input.date_range.date_from) {
-          conditions.push('timestamp >= {date_from:DateTime}');
-          variables.date_from = input.date_range.date_from;
-        }
-        if (input.date_range.date_to) {
-          conditions.push('timestamp <= {date_to:DateTime}');
-          variables.date_to = input.date_range.date_to;
-        }
-
-        if (conditions.length > 0) {
-          if (/where/i.test(query)) {
-            query = query.replace(/where/i, `WHERE (${conditions.join(' AND ')}) AND `);
-          } else {
-            const fromMatch = query.match(/from\s+\S+/i);
-            if (fromMatch) {
-              const idx = query.toLowerCase().lastIndexOf(fromMatch[0].toLowerCase());
-              query = `${query.slice(0, idx + fromMatch[0].length)} WHERE ${conditions.join(' AND ')}${query.slice(idx + fromMatch[0].length)}`;
-            }
-          }
-        }
-      }
-
-      const result = await client.queryEvents({ query, variables, limit: input.limit }, input.project_id);
+      const result = await client.queryEvents({ query: input.query, variables, limit: input.limit }, input.project_id);
       return textResult(result);
     },
   );

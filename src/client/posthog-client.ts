@@ -44,6 +44,17 @@ export class PostHogAPIError extends Error {
 const MAX_RETRIES = 2;
 const RETRY_BASE_MS = 500;
 
+/** Exported for testing — parses Retry-After (seconds or HTTP-date) or falls back to exponential backoff. */
+export function computeRetryDelay(retryAfter: string | undefined, attempt: number, now: number = Date.now()): number {
+  const backoff = RETRY_BASE_MS * 2 ** (attempt - 1);
+  if (!retryAfter) return backoff;
+  const asSeconds = Number(retryAfter);
+  if (Number.isFinite(asSeconds) && asSeconds >= 0) return asSeconds * 1000;
+  const asDate = Date.parse(retryAfter);
+  if (!Number.isNaN(asDate)) return Math.max(0, asDate - now);
+  return backoff;
+}
+
 export class PostHogClient {
   private client: AxiosInstance;
   private readonly projectId?: string;
@@ -73,10 +84,10 @@ export class PostHogClient {
         if (cfg && (status === 429 || (status && status >= 500 && status <= 504))) {
           cfg.__retryCount = (cfg.__retryCount ?? 0) + 1;
           if (cfg.__retryCount <= MAX_RETRIES) {
-            const retryAfter = Number(error.response?.headers?.['retry-after']);
-            const delay = Number.isFinite(retryAfter) && retryAfter > 0
-              ? retryAfter * 1000
-              : RETRY_BASE_MS * 2 ** (cfg.__retryCount - 1);
+            const delay = computeRetryDelay(
+              error.response?.headers?.['retry-after'] as string | undefined,
+              cfg.__retryCount,
+            );
             await new Promise((res) => setTimeout(res, delay));
             return this.client.request(cfg);
           }
@@ -251,14 +262,11 @@ export class PostHogClient {
     const hasLimit = /\bLIMIT\s+\d+/i.test(query.query);
     const finalQuery = !hasLimit && query.limit ? `${query.query.trim()} LIMIT ${query.limit}` : query.query;
 
-    const body: Record<string, unknown> = {
-      query: { kind: 'HogQLQuery', query: finalQuery },
-    };
+    const hogqlNode: Record<string, unknown> = { kind: 'HogQLQuery', query: finalQuery };
     if (query.variables && Object.keys(query.variables).length > 0) {
-      body.variables = query.variables;
+      hogqlNode.values = query.variables;
     }
-
-    const { data } = await this.client.post<QueryResponse>(this.projectUrl('query/', projectId), body);
+    const { data } = await this.client.post<QueryResponse>(this.projectUrl('query/', projectId), { query: hogqlNode });
     return data;
   }
 
@@ -330,14 +338,11 @@ export class PostHogClient {
     const hasLimit = /\bLIMIT\s+\d+/i.test(query);
     const finalQuery = !hasLimit && limit ? `${query.trim()} LIMIT ${limit}` : query;
 
-    const body: Record<string, unknown> = {
-      query: { kind: 'HogQLQuery', query: finalQuery },
-    };
+    const hogqlNode: Record<string, unknown> = { kind: 'HogQLQuery', query: finalQuery };
     if (variables && Object.keys(variables).length > 0) {
-      body.variables = variables;
+      hogqlNode.values = variables;
     }
-
-    const { data } = await this.client.post<QueryResponse>(this.projectUrl('query/', projectId), body);
+    const { data } = await this.client.post<QueryResponse>(this.projectUrl('query/', projectId), { query: hogqlNode });
     return data;
   }
 
