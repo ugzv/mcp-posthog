@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
+import { hogqlErrorHint } from '../hogql';
 import {
   PostHogConfig,
   Person,
@@ -39,6 +40,15 @@ export class PostHogAPIError extends Error {
     super(`${message}${suffix}${detailText}`);
     this.name = 'PostHogAPIError';
   }
+}
+
+/** Append a HogQL fix hint to recognized query errors so clients self-correct. */
+function withHogqlHint(err: unknown): unknown {
+  if (err instanceof PostHogAPIError) {
+    const hint = hogqlErrorHint(err.message);
+    if (hint) err.message += `\n\nHint: ${hint}`;
+  }
+  return err;
 }
 
 const MAX_RETRIES = 2;
@@ -266,8 +276,12 @@ export class PostHogClient {
     if (query.variables && Object.keys(query.variables).length > 0) {
       hogqlNode.values = query.variables;
     }
-    const { data } = await this.client.post<QueryResponse>(this.projectUrl('query/', projectId), { query: hogqlNode });
-    return data;
+    try {
+      const { data } = await this.client.post<QueryResponse>(this.projectUrl('query/', projectId), { query: hogqlNode });
+      return data;
+    } catch (err) {
+      throw withHogqlHint(err);
+    }
   }
 
   // ---- Cohorts ----
@@ -342,8 +356,12 @@ export class PostHogClient {
     if (variables && Object.keys(variables).length > 0) {
       hogqlNode.values = variables;
     }
-    const { data } = await this.client.post<QueryResponse>(this.projectUrl('query/', projectId), { query: hogqlNode });
-    return data;
+    try {
+      const { data } = await this.client.post<QueryResponse>(this.projectUrl('query/', projectId), { query: hogqlNode });
+      return data;
+    } catch (err) {
+      throw withHogqlHint(err);
+    }
   }
 
   // ---- Annotations ----

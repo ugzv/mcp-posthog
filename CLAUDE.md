@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repo.
 
 ## What this is
 
-A PostHog MCP server (v2.x) exposing 55 tools, 3 prompt templates, and 1 resource via the Model Context Protocol over stdio. Built on `@modelcontextprotocol/sdk@^1.29`.
+A PostHog MCP server (v2.x) exposing 55 tools, 3 prompt templates, and 2 resources via the Model Context Protocol over stdio. Built on `@modelcontextprotocol/sdk@^1.29`.
 
 ## Commands
 
@@ -26,7 +26,8 @@ src/
 ├── index.ts                  # CLI entrypoint, handles --init/--help, graceful shutdown
 ├── server.ts                 # PostHogMCPServer class — composes McpServer + registers all tools/resources/prompts
 ├── config.ts                 # loadConfig() — env vars + optional posthog-mcp.config.json
-├── resources.ts              # MCP resources (posthog://project/current)
+├── resources.ts              # MCP resources (posthog://project/current, posthog://hogql/schema)
+├── hogql.ts                  # HogQL schema cheat-sheet + runtime error-hint enrichment
 ├── prompts.ts                # MCP prompts (HogQL templates)
 ├── client/
 │   └── posthog-client.ts     # axios wrapper with retry on 429/5xx, PostHogAPIError

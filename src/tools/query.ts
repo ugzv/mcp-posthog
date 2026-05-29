@@ -1,6 +1,7 @@
 import { z } from 'zod/v3';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { PostHogClient } from '../client/posthog-client';
+import { HOGQL_SCHEMA_SHORT } from '../hogql';
 import { readOnly, textResult } from './_helpers';
 
 export const queryHogqlSchema = z.object({
@@ -23,12 +24,8 @@ export function registerQueryTools(server: McpServer, client: PostHogClient): vo
       title: 'Run HogQL query',
       description:
         'Execute a HogQL query against the PostHog events/persons store. ' +
-        'HogQL placeholder syntax: {name} (plain braces, no type annotation) bound from the variables argument. ' +
-        'Schema note for $exception events: properties use plural ARRAY names — ' +
-        '$exception_types, $exception_values, $exception_sources, $exception_stack_trace_raw ' +
-        '(and scalar $exception_fingerprint). The singular $exception_type / $exception_message ' +
-        'do not exist; querying them returns NULL silently. Read via arrayElement(field, 1). ' +
-        'If a field returns all NULL, run SELECT JSONExtractKeys(properties) ... LIMIT 1 first.',
+        'Placeholder syntax: {name} (plain braces, no type annotation) bound from the variables argument. ' +
+        HOGQL_SCHEMA_SHORT,
       inputSchema: queryHogqlSchema.shape,
       annotations: readOnly,
     },

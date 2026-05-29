@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
+import { version as pkgVersion } from '../package.json';
 import { PostHogClient } from './client/posthog-client';
 import { registerInsightsTools } from './tools/insights';
 import { registerPersonsTools } from './tools/persons';
@@ -27,6 +28,17 @@ export interface ServerConfig {
   serverVersion?: string;
 }
 
+/** Server-level guidance surfaced to clients in the MCP initialize result. */
+const SERVER_INSTRUCTIONS =
+  'PostHog analytics over MCP: events, persons, insights, dashboards, feature flags, cohorts, ' +
+  'surveys, experiments, and session recordings. ' +
+  'For ad-hoc analytics use query_hogql / events_query. HogQL essentials: event columns ' +
+  '(event, timestamp, distinct_id, person_id) are queried directly; event properties live under ' +
+  'properties.$name and are STRINGS — cast with toFloat64() before any numeric or aggregate use; ' +
+  'there is no min_timestamp/max_timestamp column (use min(timestamp)/max(timestamp)). ' +
+  'Read the resource posthog://hogql/schema for the full schema and common pitfalls before writing queries. ' +
+  'Tools annotated readOnly are safe; create/update/delete tools mutate PostHog data.';
+
 export class PostHogMCPServer {
   private readonly server: McpServer;
   private readonly client: PostHogClient;
@@ -39,10 +51,13 @@ export class PostHogMCPServer {
       projectId: config.projectId,
     });
 
-    this.server = new McpServer({
-      name: config.serverName ?? 'posthog-mcp',
-      version: config.serverVersion ?? '2.0.0',
-    });
+    this.server = new McpServer(
+      {
+        name: config.serverName ?? 'posthog-mcp',
+        version: config.serverVersion ?? pkgVersion,
+      },
+      { instructions: SERVER_INSTRUCTIONS },
+    );
 
     this.registerAll();
 

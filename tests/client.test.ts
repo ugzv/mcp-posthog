@@ -107,6 +107,20 @@ describe('PostHogClient', () => {
     });
     await client.executeHogQL('SELECT 1 LIMIT 1', {}, 50);
   });
+
+  it('appends a HogQL fix hint to recognized query errors', async () => {
+    mock.onPost('/api/projects/42/query/').reply(400, {
+      detail: 'Unable to resolve field: min_timestamp. Did you mean: timestamp?',
+    });
+    await expect(client.executeHogQL('SELECT min_timestamp FROM events', undefined, 50)).rejects.toThrow(
+      /Hint:.*min\(timestamp\)/s,
+    );
+  });
+
+  it('leaves unrecognized query errors unhinted', async () => {
+    mock.onPost('/api/projects/42/query/').reply(500, { detail: 'internal server error' });
+    await expect(client.queryEvents({ query: 'SELECT 1', limit: 1 })).rejects.not.toThrow(/Hint:/);
+  });
 });
 
 describe('computeRetryDelay', () => {

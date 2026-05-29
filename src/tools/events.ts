@@ -1,6 +1,7 @@
 import { z } from 'zod/v3';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { PostHogClient } from '../client/posthog-client';
+import { HOGQL_SCHEMA_SHORT } from '../hogql';
 import { readOnly, create, textResult } from './_helpers';
 
 export const eventsCaptureSchema = z.object({
@@ -48,10 +49,7 @@ export function registerEventsTools(server: McpServer, client: PostHogClient): v
       description:
         'Run a HogQL query. When date_range is supplied, date_from/date_to are bound as HogQL placeholders — ' +
         'reference them in your WHERE clause as {date_from} and {date_to} (plain braces, no type annotation). ' +
-        'Schema note for $exception events: properties use plural ARRAY names — ' +
-        '$exception_types, $exception_values, $exception_sources, $exception_stack_trace_raw ' +
-        '(and scalar $exception_fingerprint). The singular $exception_type / $exception_message ' +
-        'do not exist. Read via arrayElement(field, 1).',
+        HOGQL_SCHEMA_SHORT,
       inputSchema: eventsQuerySchema.shape,
       annotations: readOnly,
     },

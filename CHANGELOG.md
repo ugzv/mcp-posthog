@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0]
+
+### Added
+
+- **HogQL schema guidance to cut query failures.** Production telemetry showed `query_hogql` failing ~28% of the time on author mistakes — inventing columns (`min_timestamp`), aggregating string properties without a cast (`avg(properties.$session_duration)`), and unsupported integer casts. New `src/hogql.ts` centralizes a compact schema cheat-sheet now embedded in the `query_hogql` and `events_query` tool descriptions (`HOGQL_SCHEMA_SHORT`) and exposed in full as the `posthog://hogql/schema` MCP resource (`HOGQL_SCHEMA_FULL`).
+- **Self-correcting query errors.** `executeHogQL` / `queryEvents` now run recognized PostHog validation errors through `hogqlErrorHint`, appending a concrete fix (e.g. "cast with toFloat64()", "use min(timestamp); there is no min_timestamp column"). Clients see the remedy on the first failure instead of blind-retrying.
+- **Server-level `instructions`** are now sent in the MCP initialize result, summarizing the toolset and HogQL essentials so clients get guidance once at connection.
+
+### Fixed
+
+- Server name/version now single-source from `package.json` and fall back with `||` (not `??`), so an empty `MCP_SERVER_NAME` / `MCP_SERVER_VERSION` env var no longer blanks the reported `serverInfo`.
+
 ## [2.0.1]
 
 ### Fixed

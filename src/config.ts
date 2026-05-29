@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { config as dotenv } from 'dotenv';
+import { version as pkgVersion } from '../package.json';
 
 export interface Config {
   host: string;
@@ -29,8 +30,8 @@ export function loadConfig(): Config {
     apiKey: process.env.POSTHOG_API_KEY ?? fileConfig.apiKey ?? '',
     projectApiKey: process.env.POSTHOG_PROJECT_API_KEY ?? fileConfig.projectApiKey,
     projectId: process.env.POSTHOG_PROJECT_ID ?? fileConfig.projectId,
-    serverName: process.env.MCP_SERVER_NAME ?? fileConfig.serverName ?? 'posthog-mcp',
-    serverVersion: process.env.MCP_SERVER_VERSION ?? fileConfig.serverVersion ?? '2.0.0',
+    serverName: process.env.MCP_SERVER_NAME || fileConfig.serverName || 'posthog-mcp',
+    serverVersion: process.env.MCP_SERVER_VERSION || fileConfig.serverVersion || pkgVersion,
   };
 
   if (!config.host) {
@@ -63,7 +64,7 @@ export function createConfigFile(outputPath?: string): void {
     projectApiKey: '<your_project_api_key>',
     projectId: '<default_project_id>',
     serverName: 'posthog-mcp',
-    serverVersion: '2.0.0',
+    serverVersion: pkgVersion,
   };
   fs.writeFileSync(configPath, JSON.stringify(sampleConfig, null, 2));
   console.log(`Sample configuration file created at: ${configPath}`);
