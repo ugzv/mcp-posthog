@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0]
+
+### Added
+
+- **`query_natural_language` tool — ask analytics questions in plain English (56 tools total).** Ported from upstream `PostHog/mcp`'s `sqlInsight`: posts the question to PostHog's `max_tools/create_and_query_insight/` ("Max AI"), which generates and runs the query against the project's own schema, then returns the generated runnable query plus a data summary. This eliminates schema-guessing at the source — agents unsure of event/property names no longer have to hand-author HogQL. `src/max-insight.ts` parses the message stream (drops acks, surfaces the `ai/viz` query and the `tool` answer). Requires Max AI enabled on the project; verified against the live PostHog API. Falls back to `query_hogql` for precise control.
+
 ## [2.1.0]
 
 ### Added

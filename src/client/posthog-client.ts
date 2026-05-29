@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 import { hogqlErrorHint } from '../hogql';
+import { extractMaxInsight, MaxInsightResult } from '../max-insight';
 import {
   PostHogConfig,
   Person,
@@ -129,6 +130,14 @@ export class PostHogClient {
       throw new PostHogAPIError('Project ID is required but not provided (set POSTHOG_PROJECT_ID)');
     }
     return `/api/projects/${pid}/${endpoint}`;
+  }
+
+  private environmentUrl(endpoint: string, projectId?: string): string {
+    const pid = projectId ?? this.projectId;
+    if (!pid) {
+      throw new PostHogAPIError('Project ID is required but not provided (set POSTHOG_PROJECT_ID)');
+    }
+    return `/api/environments/${pid}/${endpoint}`;
   }
 
   // ---- Insights ----
@@ -362,6 +371,20 @@ export class PostHogClient {
     } catch (err) {
       throw withHogqlHint(err);
     }
+  }
+
+  /**
+   * Generate and run an insight from a plain-English question via PostHog's
+   * "Max AI". Returns the generated runnable query plus a summary of the data,
+   * so callers don't have to author HogQL themselves.
+   */
+  async generateInsightFromQuestion(question: string, projectId?: string): Promise<MaxInsightResult> {
+    const { data } = await this.client.post<unknown>(
+      this.environmentUrl('max_tools/create_and_query_insight/', projectId),
+      { query: question, insight_type: 'sql' },
+      { timeout: 120000 },
+    );
+    return extractMaxInsight(data);
   }
 
   // ---- Annotations ----

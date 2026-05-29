@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repo.
 
 ## What this is
 
-A PostHog MCP server (v2.x) exposing 55 tools, 3 prompt templates, and 2 resources via the Model Context Protocol over stdio. Built on `@modelcontextprotocol/sdk@^1.29`.
+A PostHog MCP server (v2.x) exposing 56 tools, 3 prompt templates, and 2 resources via the Model Context Protocol over stdio. Built on `@modelcontextprotocol/sdk@^1.29`.
 
 ## Commands
 
@@ -28,6 +28,7 @@ src/
 ├── config.ts                 # loadConfig() — env vars + optional posthog-mcp.config.json
 ├── resources.ts              # MCP resources (posthog://project/current, posthog://hogql/schema)
 ├── hogql.ts                  # HogQL schema cheat-sheet + runtime error-hint enrichment
+├── max-insight.ts            # parses PostHog Max AI (max_tools) message stream
 ├── prompts.ts                # MCP prompts (HogQL templates)
 ├── client/
 │   └── posthog-client.ts     # axios wrapper with retry on 429/5xx, PostHogAPIError
@@ -40,7 +41,7 @@ src/
 │   ├── events.ts             # 2 tools: capture, query
 │   ├── cohorts.ts            # 4 tools
 │   ├── projects.ts           # 2 tools
-│   ├── query.ts              # 2 tools: hogql, export
+│   ├── query.ts              # 3 tools: hogql, export, natural_language (Max AI)
 │   ├── annotations.ts        # 5 tools
 │   ├── actions.ts            # 5 tools
 │   ├── surveys.ts            # 6 tools

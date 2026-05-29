@@ -17,6 +17,11 @@ export const queryExportSchema = z.object({
   project_id: z.string().optional(),
 });
 
+export const queryNaturalLanguageSchema = z.object({
+  question: z.string().describe('Plain-English analytics question, e.g. "top 5 events by count in the last 7 days"'),
+  project_id: z.string().optional(),
+});
+
 export function registerQueryTools(server: McpServer, client: PostHogClient): void {
   server.registerTool(
     'query_hogql',
@@ -64,5 +69,20 @@ export function registerQueryTools(server: McpServer, client: PostHogClient): vo
       }
       return textResult(result);
     },
+  );
+
+  server.registerTool(
+    'query_natural_language',
+    {
+      title: 'Query in plain English (Max AI)',
+      description:
+        'Answer an analytics question without writing HogQL. PostHog\'s Max AI generates and runs the ' +
+        'query against this project\'s schema, returning the generated runnable query plus a summary of ' +
+        'the data. Prefer this when you are unsure of event/property names or the right HogQL; fall back ' +
+        'to query_hogql for precise control. Requires Max AI to be enabled on the project.',
+      inputSchema: queryNaturalLanguageSchema.shape,
+      annotations: readOnly,
+    },
+    async (input) => textResult(await client.generateInsightFromQuestion(input.question, input.project_id)),
   );
 }

@@ -108,6 +108,24 @@ describe('PostHogClient', () => {
     await client.executeHogQL('SELECT 1 LIMIT 1', {}, 50);
   });
 
+  it('generateInsightFromQuestion posts to the environments max_tools endpoint and parses the stream', async () => {
+    mock.onPost('/api/environments/42/max_tools/create_and_query_insight/').reply((config) => {
+      expect(JSON.parse(config.data)).toEqual({ query: 'top events', insight_type: 'sql' });
+      return [
+        200,
+        [
+          { type: 'message', data: { type: 'ack' } },
+          { type: 'message', data: { type: 'ai/viz', answer: { kind: 'TrendsQuery' } } },
+          { type: 'message', data: { type: 'tool', content: 'answer text' } },
+        ],
+      ];
+    });
+    const r = await client.generateInsightFromQuestion('top events');
+    expect(r.generatedQuery).toEqual({ kind: 'TrendsQuery' });
+    expect(r.summary).toBe('answer text');
+    expect(r.messageCount).toBe(2);
+  });
+
   it('appends a HogQL fix hint to recognized query errors', async () => {
     mock.onPost('/api/projects/42/query/').reply(400, {
       detail: 'Unable to resolve field: min_timestamp. Did you mean: timestamp?',
